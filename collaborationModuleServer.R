@@ -233,26 +233,41 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
       }
     )
     
-    # 页面加载时渲染UI，绑定按钮
-    observe({
+    # # 页面加载时渲染UI，绑定按钮
+    # observe({
+    #   requests <- poll_requests()
+    #   
+    #   requests_data(requests)  # 更新 reactiveVal，但不触发依赖
+    # 
+    #   showNotification(nrow(requests))
+    #   
+    #   # # requests_data(requests)  # 更新缓存
+    #   refresh_todo_board()  # 刷新任务板
+    #   
+    #   if (nrow(requests) > 0) {
+    #     # 为每条记录绑定按钮逻辑
+    #     lapply(requests$RequestID, function(request_id) {
+    #       output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
+    #       bind_buttons(request_id)
+    #     })
+    #   }
+    # })
+    
+    # 页面加载时一次性绑定所有按钮
+    observeEvent(poll_requests(), {
       requests <- poll_requests()
+      requests_data(requests)  # 更新缓存
+      refresh_todo_board()
       
-      requests_data(requests)  # 更新 reactiveVal，但不触发依赖
-
       showNotification(nrow(requests))
       
-      # # requests_data(requests)  # 更新缓存
-      refresh_todo_board()  # 刷新任务板
-      
-      if (nrow(requests) > 0) {
-        # 为每条记录绑定按钮逻辑
-        lapply(requests$RequestID, function(request_id) {
-          output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
+      # 仅在初始化时绑定按钮
+      lapply(requests$RequestID, function(request_id) {
+        if (!(request_id %in% isolate(registered_buttons()))) {
           bind_buttons(request_id)
-        })
-      }
+        }
+      })
     })
-    
     
     # SKU 和物品名输入互斥逻辑
     observeEvent(input$search_sku, {
