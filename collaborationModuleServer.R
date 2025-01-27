@@ -217,13 +217,7 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
           dbExecute(con, "UPDATE purchase_requests SET Remarks = ? WHERE RequestID = ?", params = list(updated_remarks, request_id))
           
           # 刷新对应的留言记录
-          # output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
-          
-          showNotification(paste("Updating remarks output for ID:", ns(paste0("remarks_", request_id))))  # 调试信息
-          
-          output[[ns(paste0("remarks_", request_id))]] <- renderUI({
-            tags$p("测试内容", style = "color: green;")
-          })
+          output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
           
           # 清空输入框
           updateTextInput(session, ns(paste0("remark_input_", request_id)), value = "")
