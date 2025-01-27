@@ -240,7 +240,7 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
       },
       valueFunc = function() {
         result <- dbGetQuery(con, "SELECT * FROM purchase_requests")
-        requests_data(requests)
+        requests_data(result)
         if (nrow(result) == 0) { data.frame() } else { result }
       }
     )
