@@ -237,12 +237,12 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
     observeEvent(poll_requests(), {
       requests <- poll_requests()
       requests_data(requests)
-      showNotification(nrow(requests))
     })
     
     # 渲染 UI
     observe({
       requests <- requests_data()
+      showNotification(nrow(requests))
       
       refresh_todo_board()
       
