@@ -240,7 +240,6 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
       },
       valueFunc = function() {
         result <- dbGetQuery(con, "SELECT * FROM purchase_requests")
-        # requests_data(result)
         if (nrow(result) == 0) { data.frame() } else { result }
       }
     )
@@ -248,6 +247,10 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
     # 页面加载时渲染UI，绑定按钮
     observe({
       requests <- poll_requests()
+      
+      isolate({
+        requests_data(requests)  # 更新 reactiveVal，但不触发依赖
+      })
       
       showNotification(nrow(requests))
       
