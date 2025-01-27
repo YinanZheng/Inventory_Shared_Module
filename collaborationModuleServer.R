@@ -259,6 +259,7 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
       refresh_todo_board()  # 刷新任务板
       
       if (nrow(requests) > 0) {
+        showNotification(nrow(requests))
         # 为每条记录绑定按钮逻辑
         lapply(requests$RequestID, function(request_id) {
           bind_buttons(request_id)  # 调用封装的函数
