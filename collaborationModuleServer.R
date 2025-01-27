@@ -233,39 +233,22 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
       }
     )
     
-    # # 页面加载时渲染UI，绑定按钮
-    # observe({
-    #   requests <- poll_requests()
-    #   
-    #   requests_data(requests)  # 更新 reactiveVal，但不触发依赖
-    # 
-    #   showNotification(nrow(requests))
-    #   
-    #   # # requests_data(requests)  # 更新缓存
-    #   refresh_todo_board()  # 刷新任务板
-    #   
-    #   if (nrow(requests) > 0) {
-    #     # 为每条记录绑定按钮逻辑
-    #     lapply(requests$RequestID, function(request_id) {
-    #       output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
-    #       bind_buttons(request_id)
-    #     })
-    #   }
-    # })
-    
-    # 页面加载时一次性绑定所有按钮
+    # 更新数据
     observeEvent(poll_requests(), {
       requests <- poll_requests()
-      requests_data(requests)  # 更新缓存
+      requests_data(requests)
+      showNotification(nrow(requests))
+    })
+    
+    # 渲染 UI
+    observe({
+      requests <- requests_data()
+      
       refresh_todo_board()
       
-      showNotification(nrow(requests))
-      
-      # 仅在初始化时绑定按钮
       lapply(requests$RequestID, function(request_id) {
-        if (!(request_id %in% isolate(registered_buttons()))) {
-          bind_buttons(request_id)
-        }
+        output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
+        bind_buttons(request_id)
       })
     })
     
