@@ -255,11 +255,13 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
     # 页面加载时渲染UI，绑定按钮
     observe({
       requests <- poll_requests()
+      showNotification(requests$RequestID)
+      
       requests_data(requests)  # 更新缓存
       refresh_todo_board()  # 刷新任务板
       
       if (nrow(requests) > 0) {
-        showNotification(nrow(requests))
+        showNotification(requests$RequestID)
         # 为每条记录绑定按钮逻辑
         lapply(requests$RequestID, function(request_id) {
           bind_buttons(request_id)  # 调用封装的函数
