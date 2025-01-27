@@ -236,18 +236,21 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
     # })
     
     observe({
-      requests <- requests_data()
+      requests <- requests_data()  # 从 reactiveVal 获取值
       refresh_todo_board()
       
       isolate({
         lapply(requests$RequestID, function(request_id) {
+          # 在这里通过局部变量存储值，避免 later 中的错误
+          local_request_id <- request_id
           later::later(function() {
-            output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
-            message("Delayed binding for ID: ", request_id)
+            output[[ns(paste0("remarks_", local_request_id))]] <- renderRemarks(local_request_id)
+            message("Delayed binding for ID: ", local_request_id)
           }, delay = 1)  # 延迟 1 秒绑定
         })
       })
     })
+    
     
     
     # SKU 和物品名输入互斥逻辑
