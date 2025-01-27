@@ -74,7 +74,11 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
               request_id <- item$RequestID
               
               # 动态绑定留言记录到 UI
-              output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
+              # output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
+              
+              output[[ns(paste0("remarks_", request_id))]] <- renderUI({
+                tags$p(paste("Rendering remarks for:", request_id))
+              })
               
               showNotification(ns(paste0("remarks_", request_id)))
               showNotification(renderRemarks(request_id))
