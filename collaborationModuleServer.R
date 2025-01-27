@@ -152,7 +152,7 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
     }
     
     # Function: 绑定按钮
-    bind_buttons <- function(request_id, session) {
+    bind_buttons <- function(request_id) {
       ns <- session$ns  # 获取模块的命名空间
       
       # 动态绑定“加急”按钮逻辑
@@ -216,7 +216,10 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
           dbExecute(con, "UPDATE purchase_requests SET Remarks = ? WHERE RequestID = ?", params = list(updated_remarks, request_id))
           
           # 刷新对应的留言记录
-          output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
+          # output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
+          output[[ns(paste0("remarks_", request_id))]] <- renderUI({
+            tags$p("测试内容")  # 测试静态内容是否渲染
+          })
           
           # 清空输入框
           updateTextInput(session, ns(paste0("remark_input_", request_id)), value = "")
@@ -256,7 +259,7 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
       if (nrow(requests) > 0) {
         # 为每条记录绑定按钮逻辑
         lapply(requests$RequestID, function(request_id) {
-          bind_buttons(request_id, session)  # 调用封装的函数
+          bind_buttons(request_id)  # 调用封装的函数
         })
       }
     })
@@ -370,7 +373,7 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
                     params = list(request_id, filtered_data$SKU, filtered_data$Maker, item_image_path, item_description, input$request_quantity))
           
           refresh_todo_board()
-          bind_buttons(request_id, session)
+          bind_buttons(request_id)
           
           updateTextInput(session, "search_sku", value = "")
           updateTextInput(session, "search_name", value = "")
@@ -423,7 +426,7 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
       # 刷新任务板
       refresh_todo_board()
       
-      bind_buttons(request_id, session) #绑定按钮逻辑
+      bind_buttons(request_id) #绑定按钮逻辑
       
       # 清空输入字段
       updateTextInput(session, "custom_description", value = "")
