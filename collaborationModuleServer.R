@@ -233,17 +233,15 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
       }
     )
     
-    # 更新数据
     observeEvent(poll_requests(), {
       requests <- poll_requests()
+      message("Polling requests updated")
       requests_data(requests)
     })
     
-    # 渲染 UI
     observe({
+      message("Refresh todo board triggered")
       requests <- requests_data()
-      showNotification(nrow(requests))
-      
       refresh_todo_board()
       
       lapply(requests$RequestID, function(request_id) {
@@ -251,6 +249,7 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
         bind_buttons(request_id)
       })
     })
+    
     
     # SKU 和物品名输入互斥逻辑
     observeEvent(input$search_sku, {
