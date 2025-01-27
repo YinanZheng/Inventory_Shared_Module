@@ -219,21 +219,36 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
       requests_data(requests)
     })
     
+    # observe({
+    #   requests <- requests_data()
+    #   refresh_todo_board()
+    #   
+    #   # 为每条记录绑定按钮逻辑
+    #   isolate({
+    #     lapply(requests$RequestID, function(request_id) {
+    #       message("Generated remarks ID: ", ns(paste0("remarks_", request_id)))
+    #       delay(1000, {
+    #         output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
+    #       })          
+    #       bind_buttons(request_id)  # 按 RequestID 动态绑定按钮
+    #     })
+    #   })
+    # })
+    
     observe({
       requests <- requests_data()
       refresh_todo_board()
       
-      # 为每条记录绑定按钮逻辑
       isolate({
         lapply(requests$RequestID, function(request_id) {
-          message("Generated remarks ID: ", ns(paste0("remarks_", request_id)))
-          delay(1000, {
+          later::later(function() {
             output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
-          })          
-          bind_buttons(request_id)  # 按 RequestID 动态绑定按钮
+            message("Delayed binding for ID: ", request_id)
+          }, delay = 1)  # 延迟 1 秒绑定
         })
       })
     })
+    
     
     # SKU 和物品名输入互斥逻辑
     observeEvent(input$search_sku, {
