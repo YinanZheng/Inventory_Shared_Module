@@ -219,40 +219,22 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
       requests_data(requests)
     })
     
-    # observe({
-    #   requests <- requests_data()
-    #   refresh_todo_board()
-    #   
-    #   # 为每条记录绑定按钮逻辑
-    #   isolate({
-    #     lapply(requests$RequestID, function(request_id) {
-    #       message("Generated remarks ID: ", ns(paste0("remarks_", request_id)))
-    #       delay(1000, {
-    #         output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
-    #       })          
-    #       bind_buttons(request_id)  # 按 RequestID 动态绑定按钮
-    #     })
-    #   })
-    # })
-    
     observe({
-      requests <- requests_data()  # 从 reactiveVal 获取值
+      requests <- requests_data()
       refresh_todo_board()
-      
-      # isolate({
+
+      # 为每条记录绑定按钮逻辑
+      isolate({
         lapply(requests$RequestID, function(request_id) {
-          # 在这里通过局部变量存储值，避免 later 中的错误
-          local_request_id <- request_id
-          later::later(function() {
-            output[[ns(paste0("remarks_", local_request_id))]] <- renderRemarks(local_request_id)
-            message("Delayed binding for ID: ", local_request_id)
-          }, delay = 1)  # 延迟 1 秒绑定
+          message("Generated remarks ID: ", ns(paste0("remarks_", request_id)))
+          delay(1000, {
+            output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
+          })
+          bind_buttons(request_id)  # 按 RequestID 动态绑定按钮
         })
-      # })
+      })
     })
-    
-    
-    
+
     # SKU 和物品名输入互斥逻辑
     observeEvent(input$search_sku, {
       # 如果 SKU 搜索框有值，则清空物品名称搜索框
