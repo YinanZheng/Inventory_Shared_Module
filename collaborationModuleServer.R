@@ -248,22 +248,20 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
     observe({
       requests <- poll_requests()
       
-      isolate({
-        requests_data(requests)  # 更新 reactiveVal，但不触发依赖
-      })
-      
+      requests_data(requests)  # 更新 reactiveVal，但不触发依赖
+
       showNotification(nrow(requests))
       
-      # requests_data(requests)  # 更新缓存
-      refresh_todo_board()  # 刷新任务板
-      
-      if (nrow(requests) > 0) {
-        # 为每条记录绑定按钮逻辑
-        lapply(requests$RequestID, function(request_id) {
-          output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
-          bind_buttons(request_id)
-        })
-      }
+      # # requests_data(requests)  # 更新缓存
+      # refresh_todo_board()  # 刷新任务板
+      # 
+      # if (nrow(requests) > 0) {
+      #   # 为每条记录绑定按钮逻辑
+      #   lapply(requests$RequestID, function(request_id) {
+      #     output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
+      #     bind_buttons(request_id)
+      #   })
+      # }
     })
     
     
