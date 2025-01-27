@@ -191,6 +191,7 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
       # 动态绑定“提交留言”按钮逻辑
       submit_button_id <- ns(paste0("submit_remark_", request_id))
       if (!(submit_button_id %in% registered_buttons())) {
+        showNotification(submit_button_id)
         observeEvent(input[[submit_button_id]], {
           remark <- input[[ns(paste0("remark_input_", request_id))]]
           req(remark != "")
