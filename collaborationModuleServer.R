@@ -226,30 +226,29 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
     }
     
     # 定期检查采购请求数据库的最新数据
-    # poll_requests <- reactivePoll(
-    #   intervalMillis = poll_interval,
-    #   session = session,
-    #   checkFunc = function() {
-    #     # 查询最新更新时间
-    #     last_updated <- dbGetQuery(con, "SELECT MAX(UpdatedAt) AS last_updated FROM purchase_requests")$last_updated[1]
-    #     if (is.null(last_updated)) {
-    #       Sys.time()  # 如果无数据，返回当前时间
-    #     } else {
-    #       last_updated
-    #     }    
-    #   },
-    #   valueFunc = function() {
-    #     result <- dbGetQuery(con, "SELECT * FROM purchase_requests")
-    #     if (nrow(result) == 0) { data.frame() } else { result }
-    #   }
-    # )
+    poll_requests <- reactivePoll(
+      intervalMillis = poll_interval,
+      session = session,
+      checkFunc = function() {
+        # 查询最新更新时间
+        last_updated <- dbGetQuery(con, "SELECT MAX(UpdatedAt) AS last_updated FROM purchase_requests")$last_updated[1]
+        if (is.null(last_updated)) {
+          Sys.time()  # 如果无数据，返回当前时间
+        } else {
+          last_updated
+        }
+      },
+      valueFunc = function() {
+        result <- dbGetQuery(con, "SELECT * FROM purchase_requests")
+        requests_data(requests)
+        if (nrow(result) == 0) { data.frame() } else { result }
+      }
+    )
     
     # 页面加载时渲染UI，绑定按钮
     observe({
-      # requests <- poll_requests()
+      requests <- poll_requests()
       
-      requests <- dbGetQuery(con, "SELECT * FROM purchase_requests")
-
       showNotification(nrow(requests))
       
       # requests_data(requests)  # 更新缓存
