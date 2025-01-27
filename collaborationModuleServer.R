@@ -218,8 +218,9 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
           # 刷新对应的留言记录
           # output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
           
+          showNotification(paste("Updating remarks output for ID:", ns(paste0("remarks_", request_id))))  # 调试信息
+          
           output[[ns(paste0("remarks_", request_id))]] <- renderUI({
-            showNotification(paste("Updating remarks output for ID:", ns(paste0("remarks_", request_id))))  # 调试信息
             tags$p("测试内容", style = "color: green;")
           })
           
@@ -255,8 +256,6 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
     # 页面加载时渲染UI，绑定按钮
     observe({
       requests <- poll_requests()
-      showNotification(paste(requests$RequestID, collapse = ", "))
-      
       requests_data(requests)  # 更新缓存
       refresh_todo_board()  # 刷新任务板
       
@@ -266,9 +265,6 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
           bind_buttons(request_id)  # 调用封装的函数
         })
       }
-      
-      showNotification(paste(registered_buttons(), collapse = ", "))
-      
     })
     
     
