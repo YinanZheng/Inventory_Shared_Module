@@ -151,10 +151,7 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
     # Function: 绑定按钮
     bind_buttons <- function(request_id) {
       ns <- session$ns  # 获取模块的命名空间
-      
-      # 动态绑定留言记录到 UI
-      output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
-      
+
       # 动态绑定“加急”按钮逻辑
       urgent_button_id <- ns(paste0("mark_urgent_", request_id))
       if (!(urgent_button_id %in% registered_buttons())) {
@@ -229,34 +226,40 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
     }
     
     # 定期检查采购请求数据库的最新数据
-    poll_requests <- reactivePoll(
-      intervalMillis = poll_interval,
-      session = session,
-      checkFunc = function() {
-        # 查询最新更新时间
-        last_updated <- dbGetQuery(con, "SELECT MAX(UpdatedAt) AS last_updated FROM purchase_requests")$last_updated[1]
-        if (is.null(last_updated)) {
-          Sys.time()  # 如果无数据，返回当前时间
-        } else {
-          last_updated
-        }    
-      },
-      valueFunc = function() {
-        result <- dbGetQuery(con, "SELECT * FROM purchase_requests")
-        if (nrow(result) == 0) { data.frame() } else { result }
-      }
-    )
+    # poll_requests <- reactivePoll(
+    #   intervalMillis = poll_interval,
+    #   session = session,
+    #   checkFunc = function() {
+    #     # 查询最新更新时间
+    #     last_updated <- dbGetQuery(con, "SELECT MAX(UpdatedAt) AS last_updated FROM purchase_requests")$last_updated[1]
+    #     if (is.null(last_updated)) {
+    #       Sys.time()  # 如果无数据，返回当前时间
+    #     } else {
+    #       last_updated
+    #     }    
+    #   },
+    #   valueFunc = function() {
+    #     result <- dbGetQuery(con, "SELECT * FROM purchase_requests")
+    #     if (nrow(result) == 0) { data.frame() } else { result }
+    #   }
+    # )
     
     # 页面加载时渲染UI，绑定按钮
     observe({
-      requests <- poll_requests()
+      # requests <- poll_requests()
+      
+      requests <- dbGetQuery(con, "SELECT * FROM purchase_requests")
+
+      showNotification(nrow(requests))
+      
       requests_data(requests)  # 更新缓存
       refresh_todo_board()  # 刷新任务板
       
       if (nrow(requests) > 0) {
         # 为每条记录绑定按钮逻辑
         lapply(requests$RequestID, function(request_id) {
-          bind_buttons(request_id)  # 调用封装的函数
+          output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
+          bind_buttons(request_id)
         })
       }
     })
