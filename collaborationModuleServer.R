@@ -76,6 +76,9 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
               # 动态绑定留言记录到 UI
               output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
               
+              showNotification(ns(paste0("remarks_", request_id)))
+              showNotification(renderRemarks(request_id))
+              
               # 根据状态设置便签背景颜色和边框颜色
               card_colors <- switch(
                 item$RequestStatus,
