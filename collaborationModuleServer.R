@@ -213,20 +213,20 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
       }
     )
     
+    # 加载数据
     observeEvent(poll_requests(), {
       requests <- poll_requests()
-      message("Polling requests updated")
       requests_data(requests)
     })
     
     observe({
-      message("Refresh todo board triggered")
       requests <- requests_data()
       refresh_todo_board()
       
       # 为每条记录绑定按钮逻辑
       isolate({
         lapply(requests$RequestID, function(request_id) {
+          message("Generated remarks ID: ", ns(paste0("remarks_", request_id)))
           output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
           bind_buttons(request_id)  # 按 RequestID 动态绑定按钮
         })
