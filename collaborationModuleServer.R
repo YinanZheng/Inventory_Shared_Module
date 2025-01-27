@@ -73,7 +73,7 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
               request_id <- item$RequestID
               
               # 动态绑定留言记录到 UI
-              output[[paste0("remarks_", request_id)]] <- renderRemarks(request_id)
+              output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
               
               # 根据状态设置便签背景颜色和边框颜色
               card_colors <- switch(
@@ -122,7 +122,7 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
                   ),
                   tags$div(
                     style = "width: 58%; height: 194px; border: 1px solid #ddd; padding: 5px; background-color: #fff; overflow-y: auto; border-radius: 5px;",
-                    uiOutput(paste0("remarks_", item$RequestID))  # 使用 RequestID 动态绑定到具体记录
+                    uiOutput(ns(paste0("remarks_", item$RequestID)))  # 使用 RequestID 动态绑定到具体记录
                   )
                 ),
                 
@@ -131,17 +131,17 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
                   style = "width: 100%; display: flex; flex-direction: column; align-items: flex-start; margin-top: 5px;",
                   tags$div(
                     style = "width: 100%; display: flex; justify-content: space-between;",
-                    textInput(paste0("remark_input_", request_id), NULL, placeholder = "输入留言", width = "72%"),
-                    actionButton(paste0("submit_remark_", request_id), "提交", class = "btn-success", style = "width: 25%; height: 45px;")
+                    textInput(ns(paste0("remark_input_", request_id)), NULL, placeholder = "输入留言", width = "72%"),
+                    actionButton(ns(paste0("submit_remark_", request_id)), "提交", class = "btn-success", style = "width: 25%; height: 45px;")
                   )
                 ),
                 
                 # 状态按钮
                 tags$div(
                   style = "width: 100%; display: flex; justify-content: space-between; margin-top: 5px;",
-                  actionButton(paste0("mark_urgent_", request_id), "加急", class = "btn-danger", style = "width: 30%; height: 45px;"),
-                  actionButton(paste0("complete_task_", request_id), "完成", class = "btn-primary", style = "width: 30%; height: 45px;"),
-                  actionButton(paste0("delete_request_", request_id), "删除", class = "btn-warning", style = "width: 30%; height: 45px;")
+                  actionButton(ns(paste0("mark_urgent_", request_id)), "加急", class = "btn-danger", style = "width: 30%; height: 45px;"),
+                  actionButton(ns(paste0("complete_task_", request_id)), "完成", class = "btn-primary", style = "width: 30%; height: 45px;"),
+                  actionButton(ns(paste0("delete_request_", request_id)), "删除", class = "btn-warning", style = "width: 30%; height: 45px;")
                 )
               )
             })
@@ -153,7 +153,7 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
     # Function: 绑定按钮
     bind_buttons <- function(request_id) {
       # 动态绑定“加急”按钮逻辑
-      urgent_button_id <- paste0("mark_urgent_", request_id)
+      urgent_button_id <- ns(paste0("mark_urgent_", request_id))
       if (!(urgent_button_id %in% registered_buttons())) {
         observeEvent(input[[urgent_button_id]], {
           dbExecute(con, "UPDATE purchase_requests SET RequestStatus = '紧急' WHERE RequestID = ?", params = list(request_id))
@@ -164,7 +164,7 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
       }
       
       # 动态绑定“任务完成”按钮逻辑
-      complete_button_id <- paste0("complete_task_", request_id)
+      complete_button_id <- ns(paste0("complete_task_", request_id))
       if (!(complete_button_id %in% registered_buttons())) {
         observeEvent(input[[complete_button_id]], {
           dbExecute(con, "UPDATE purchase_requests SET RequestStatus = '已完成' WHERE RequestID = ?", params = list(request_id))
@@ -175,7 +175,7 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
       }
       
       # 动态绑定“删除”按钮逻辑
-      delete_button_id <- paste0("delete_request_", request_id)
+      delete_button_id <- ns(paste0("delete_request_", request_id))
       if (!(delete_button_id %in% registered_buttons())) {
         observeEvent(input[[delete_button_id]], {
           dbExecute(con, "DELETE FROM purchase_requests WHERE RequestID = ?", params = list(request_id))
@@ -186,10 +186,10 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
       }
       
       # 动态绑定“提交留言”按钮逻辑
-      submit_button_id <- paste0("submit_remark_", request_id)
+      submit_button_id <- ns(paste0("submit_remark_", request_id))
       if (!(submit_button_id %in% registered_buttons())) {
         observeEvent(input[[submit_button_id]], {
-          remark <- input[[paste0("remark_input_", request_id)]]
+          remark <- input[[ns(paste0("remark_input_", request_id))]]
           req(remark != "")
           
           # 根据系统类型添加前缀
@@ -213,10 +213,10 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
           dbExecute(con, "UPDATE purchase_requests SET Remarks = ? WHERE RequestID = ?", params = list(updated_remarks, request_id))
           
           # 刷新对应的留言记录
-          output[[paste0("remarks_", request_id)]] <- renderRemarks(request_id)
+          output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
           
           # 清空输入框
-          updateTextInput(session, paste0("remark_input_", request_id), value = "")
+          updateTextInput(session, ns(paste0("remark_input_", request_id)), value = "")
           
           # 显示通知
           showNotification("留言已成功提交", type = "message")
