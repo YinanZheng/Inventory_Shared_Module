@@ -140,11 +140,14 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
                   actionButton(ns(paste0("mark_urgent_", request_id)), "加急", class = "btn-danger", style = "width: 30%; height: 45px;"),
                   actionButton(ns(paste0("complete_task_", request_id)), "完成", class = "btn-primary", style = "width: 30%; height: 45px;"),
                   actionButton(ns(paste0("delete_request_", request_id)), "删除", class = "btn-warning", style = "width: 30%; height: 45px;")
-                )
+                ),
+                
+                # 动态绑定留言记录到 UI
+                output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
+                
               )
               
-              # 动态绑定留言记录到 UI
-              output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
+
             })
           )
         })
