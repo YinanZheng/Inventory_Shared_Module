@@ -246,7 +246,7 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
       
       lapply(requests$RequestID, function(request_id) {
         output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
-        bind_buttons(request_id)
+        # bind_buttons(request_id)
       })
     })
     
