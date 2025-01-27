@@ -253,7 +253,7 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
       showNotification(nrow(requests))
       
       # # requests_data(requests)  # 更新缓存
-      # refresh_todo_board()  # 刷新任务板
+      refresh_todo_board()  # 刷新任务板
       # 
       # if (nrow(requests) > 0) {
       #   # 为每条记录绑定按钮逻辑
