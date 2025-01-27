@@ -266,6 +266,9 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
           bind_buttons(request_id)  # 调用封装的函数
         })
       }
+      
+      showNotification(paste(registered_buttons(), collapse = ", "))
+      
     })
     
     
