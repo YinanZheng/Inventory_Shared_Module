@@ -72,10 +72,7 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
             lapply(1:nrow(requests), function(i) {
               item <- requests[i, , drop = FALSE]
               request_id <- item$RequestID
-              
-              # 动态绑定留言记录到 UI
-              # output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
-              
+
               # 根据状态设置便签背景颜色和边框颜色
               card_colors <- switch(
                 item$RequestStatus,
@@ -154,6 +151,9 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
     # Function: 绑定按钮
     bind_buttons <- function(request_id) {
       ns <- session$ns  # 获取模块的命名空间
+      
+      # 动态绑定留言记录到 UI
+      output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
       
       # 动态绑定“加急”按钮逻辑
       urgent_button_id <- ns(paste0("mark_urgent_", request_id))
