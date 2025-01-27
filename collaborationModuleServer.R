@@ -155,8 +155,6 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
     bind_buttons <- function(request_id) {
       ns <- session$ns  # 获取模块的命名空间
       
-      showNotification(registered_buttons())
-      
       # 动态绑定“加急”按钮逻辑
       urgent_button_id <- ns(paste0("mark_urgent_", request_id))
       if (!(urgent_button_id %in% registered_buttons())) {
