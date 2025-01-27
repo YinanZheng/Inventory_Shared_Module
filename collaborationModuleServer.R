@@ -72,17 +72,7 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
             lapply(1:nrow(requests), function(i) {
               item <- requests[i, , drop = FALSE]
               request_id <- item$RequestID
-              
-              # 动态绑定留言记录到 UI
-              # output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
-              
-              output[[ns(paste0("remarks_", request_id))]] <- renderUI({
-                tags$p(paste("Rendering remarks for:", request_id))
-              })
-              
-              showNotification(ns(paste0("remarks_", request_id)))
-              showNotification(renderRemarks(request_id))
-              
+   
               # 根据状态设置便签背景颜色和边框颜色
               card_colors <- switch(
                 item$RequestStatus,
@@ -152,6 +142,9 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
                   actionButton(ns(paste0("delete_request_", request_id)), "删除", class = "btn-warning", style = "width: 30%; height: 45px;")
                 )
               )
+              
+              # 动态绑定留言记录到 UI
+              output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
             })
           )
         })
