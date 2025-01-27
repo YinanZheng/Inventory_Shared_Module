@@ -239,7 +239,7 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
       requests <- requests_data()  # 从 reactiveVal 获取值
       refresh_todo_board()
       
-      isolate({
+      # isolate({
         lapply(requests$RequestID, function(request_id) {
           # 在这里通过局部变量存储值，避免 later 中的错误
           local_request_id <- request_id
@@ -248,7 +248,7 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
             message("Delayed binding for ID: ", local_request_id)
           }, delay = 1)  # 延迟 1 秒绑定
         })
-      })
+      # })
     })
     
     
