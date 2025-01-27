@@ -51,6 +51,7 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
     
     # Function: 渲染任务板与便签
     refresh_todo_board <- function() {
+      ns <- session$ns  # 获取模块的命名空间
       requests <- requests_data()  # 使用缓存数据
       
       if (nrow(requests) == 0) {
@@ -152,6 +153,8 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
     
     # Function: 绑定按钮
     bind_buttons <- function(request_id) {
+      ns <- session$ns  # 获取模块的命名空间
+      
       # 动态绑定“加急”按钮逻辑
       urgent_button_id <- ns(paste0("mark_urgent_", request_id))
       if (!(urgent_button_id %in% registered_buttons())) {
