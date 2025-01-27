@@ -217,8 +217,10 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
           
           # 刷新对应的留言记录
           # output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
+          
           output[[ns(paste0("remarks_", request_id))]] <- renderUI({
-            tags$p("测试内容")  # 测试静态内容是否渲染
+            showNotification(paste("Updating remarks output for ID:", ns(paste0("remarks_", request_id))))  # 调试信息
+            tags$p("测试内容", style = "color: green;")
           })
           
           # 清空输入框
