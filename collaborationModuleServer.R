@@ -254,14 +254,14 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
       
       # # requests_data(requests)  # 更新缓存
       refresh_todo_board()  # 刷新任务板
-      # 
-      # if (nrow(requests) > 0) {
-      #   # 为每条记录绑定按钮逻辑
-      #   lapply(requests$RequestID, function(request_id) {
-      #     output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
-      #     bind_buttons(request_id)
-      #   })
-      # }
+      
+      if (nrow(requests) > 0) {
+        # 为每条记录绑定按钮逻辑
+        lapply(requests$RequestID, function(request_id) {
+          output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
+          # bind_buttons(request_id)
+        })
+      }
     })
     
     
