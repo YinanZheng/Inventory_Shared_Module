@@ -2,9 +2,6 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
     
-    # 记录所有已注册的按钮 ID
-    registered_buttons <- reactiveVal(c())  
-    
     # 缓存请求数据
     requests_data <- reactiveVal(data.frame())
     
@@ -152,66 +149,49 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
     bind_buttons <- function(request_id) {
       ns <- session$ns  # 获取模块的命名空间
       
-      # 动态绑定按钮逻辑的通用函数
-      bind_button <- function(button_id, action) {
-        if (!(button_id %in% registered_buttons())) {
-          observeEvent(input[[button_id]], action)
-          registered_buttons(c(registered_buttons(), button_id))  # 标记按钮已绑定
-        }
-      }
-      
-      # 定义按钮逻辑
-      bind_button(ns(paste0("mark_urgent_", request_id)), {
+      # 按钮绑定逻辑
+      observeEvent(input[[ns(paste0("mark_urgent_", request_id))]], {
         dbExecute(con, "UPDATE purchase_requests SET RequestStatus = '紧急' WHERE RequestID = ?", params = list(request_id))
         refresh_todo_board()
-        showNotification("状态已标记为紧急", type = "warning")
-      })
+        showNotification(paste0("Request ", request_id, " 状态已标记为紧急"), type = "warning")
+      }, ignoreInit = TRUE)  # 避免初始绑定时触发事件
       
-      bind_button(ns(paste0("complete_task_", request_id)), {
+      observeEvent(input[[ns(paste0("complete_task_", request_id))]], {
         dbExecute(con, "UPDATE purchase_requests SET RequestStatus = '已完成' WHERE RequestID = ?", params = list(request_id))
         refresh_todo_board()
-        showNotification("任务已完成", type = "message")
-      })
+        showNotification(paste0("Request ", request_id, " 已完成"), type = "message")
+      }, ignoreInit = TRUE)
       
-      bind_button(ns(paste0("delete_request_", request_id)), {
+      observeEvent(input[[ns(paste0("delete_request_", request_id))]], {
         dbExecute(con, "DELETE FROM purchase_requests WHERE RequestID = ?", params = list(request_id))
         refresh_todo_board()
-        showNotification("便签已删除", type = "message")
-      })
+        showNotification(paste0("Request ", request_id, " 已删除"), type = "message")
+      }, ignoreInit = TRUE)
       
-      bind_button(ns(paste0("submit_remark_", request_id)), {
+      observeEvent(input[[ns(paste0("submit_remark_", request_id))]], {
         remark <- input[[ns(paste0("remark_input_", request_id))]]
         req(remark != "")
         
         # 根据系统类型添加前缀
-        remark_prefix <- if (system_type == "china") {
-          "[京]"
-        } else if (system_type == "us") {
-          "[圳]"
-        } else {
-          ""
-        }
-        
-        # 拼接时间戳、前缀和留言
+        remark_prefix <- if (system_type == "china") "[京]" else "[圳]"
         new_remark <- paste0(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), ": ", remark_prefix, " ", remark)
         
-        # 提取当前 RequestID 的 Remarks
+        # 更新数据库中的 Remarks 字段
         current_remarks <- requests_data() %>% filter(RequestID == request_id) %>% pull(Remarks)
         current_remarks_text <- ifelse(is.na(current_remarks), "", current_remarks)
         updated_remarks <- if (current_remarks_text == "") new_remark else paste(new_remark, current_remarks_text, sep = ";")
         
-        # 更新数据库中的 Remarks 字段
         dbExecute(con, "UPDATE purchase_requests SET Remarks = ? WHERE RequestID = ?", params = list(updated_remarks, request_id))
         
-        # 刷新对应的留言记录
-        output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
+        # 动态更新 UI
+        output[[ns(paste0("remarks_", request_id))]] <- renderUI({
+          renderRemarks(request_id)
+        })
         
         # 清空输入框
         updateTextInput(session, ns(paste0("remark_input_", request_id)), value = "")
-        
-        # 显示通知
-        showNotification("留言已成功提交", type = "message")
-      })
+        showNotification(paste0("留言已成功提交: ", request_id), type = "message")
+      }, ignoreInit = TRUE)
     }
     
     # 定期检查采购请求数据库的最新数据
@@ -244,12 +224,14 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
       requests <- requests_data()
       refresh_todo_board()
       
-      lapply(requests$RequestID, function(request_id) {
-        output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
-        # bind_buttons(request_id)
+      # 为每条记录绑定按钮逻辑
+      isolate({
+        lapply(requests$RequestID, function(request_id) {
+          output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
+          bind_buttons(request_id)  # 按 RequestID 动态绑定按钮
+        })
       })
     })
-    
     
     # SKU 和物品名输入互斥逻辑
     observeEvent(input$search_sku, {
