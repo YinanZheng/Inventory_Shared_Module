@@ -717,7 +717,7 @@ resetToCreateMode <- function(is_update_mode, selected_TransactionID, selected_T
 }
 
 # 重置账务登记表
-resetTransactionForm <- function(session) {
+resetTransactionForm <- function(session, image_transactions) {
   updateNumericInput(session, "amount", value = 0)  # 重置金额
   updateRadioButtons(session, "transaction_type", selected = "out")  # 重置为“转出”
   updateDateInput(session, "custom_date", value = Sys.Date())  # 重置为当前日期
@@ -727,7 +727,7 @@ resetTransactionForm <- function(session) {
 }
 
 # 重置资产转移表
-resetTransferForm <- function(session) {
+resetTransferForm <- function(session, image_transfer) {
   updateNumericInput(session, "transfer_amount", value = 0)  # 重置金额
   updateSelectInput(session, "from_account", selected = "美元卡")
   updateSelectInput(session, "to_account", selected = "工资卡")
