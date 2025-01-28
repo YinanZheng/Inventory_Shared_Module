@@ -234,12 +234,15 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
     observe({
       requests <- requests_data()
       refresh_todo_board()
-      lapply(requests$RequestID, function(request_id) {
-        output[[ns(paste0("remarks_", request_id))]] <- renderUI({
-          tags$div(
-            tags$p("静态测试内容", style = "color: green;"),
-            tags$p(paste("Request ID:", request_id))
-          )
+      
+      isolate({  # 使用 isolate 确保不触发过多依赖
+        lapply(requests$RequestID, function(request_id) {
+          output[[ns(paste0("remarks_", request_id))]] <- renderUI({
+            tags$div(
+              tags$p("静态测试内容", style = "color: green;"),
+              tags$p(paste("Request ID:", request_id))
+            )
+          })
         })
       })
     })
