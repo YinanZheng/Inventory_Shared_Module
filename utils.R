@@ -2206,9 +2206,9 @@ render_request_board <- function(requests, output_id, output) {
 }
 
 # 渲染留言板
-renderRemarks <- function(request_id, requests_data) {
+renderRemarks <- function(request_id, requests) {
   # 提取当前 RequestID 的 Remarks
-  current_remarks <- requests_data() %>% filter(RequestID == request_id) %>% pull(Remarks)
+  current_remarks <- requests %>% filter(RequestID == request_id) %>% pull(Remarks)
   
   # 如果当前 Remarks 为空或 NULL，则初始化为空列表
   if (is.null(current_remarks) || is.na(current_remarks)) {
@@ -2275,7 +2275,7 @@ refresh_board <- function(requests, output) {
 }
 
 # 绑定便签按钮
-bind_buttons <- function(request_id, input, output, session, con) {
+bind_buttons <- function(request_id, requests, input, output, session, con) {
   # 按钮绑定逻辑
   observeEvent(input[[paste0("mark_urgent_", request_id)]], {
     dbExecute(con, "UPDATE requests SET RequestStatus = '紧急' WHERE RequestID = ?", params = list(request_id))
@@ -2298,7 +2298,7 @@ bind_buttons <- function(request_id, input, output, session, con) {
     new_remark <- paste0(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), ": ", remark_prefix, " ", remark)
     
     # 更新数据库中的 Remarks 字段
-    current_remarks <- requests_data() %>% filter(RequestID == request_id) %>% pull(Remarks)
+    current_remarks <- requests %>% filter(RequestID == request_id) %>% pull(Remarks)
     current_remarks_text <- ifelse(is.na(current_remarks), "", current_remarks)
     updated_remarks <- if (current_remarks_text == "") new_remark else paste(new_remark, current_remarks_text, sep = ";")
     
@@ -2306,7 +2306,7 @@ bind_buttons <- function(request_id, input, output, session, con) {
     
     # 动态更新 UI
     output[[paste0("remarks_", request_id)]] <- renderUI({
-      renderRemarks(request_id, requests_data)
+      renderRemarks(request_id, requests)
     })
     
     # 清空输入框
