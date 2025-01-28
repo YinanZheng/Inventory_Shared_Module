@@ -16,10 +16,7 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
       } else {
         remarks <- unlist(strsplit(trimws(current_remarks), ";"))  # 使用 ; 分隔记录
       }
-      
-      # 调试输出
-      message("Remarks for ", request_id, ": ", paste(remarks, collapse = ", "))
-      
+
       # 生成 HTML 字符串
       remarks_html <- if (length(remarks) > 0) {
         paste0(
@@ -222,15 +219,27 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
       requests_data(requests)
     })
     
+    # observe({
+    #   requests <- requests_data()
+    #   refresh_todo_board()
+    # 
+    #   # 为每条记录绑定按钮逻辑
+    #   lapply(requests$RequestID, function(request_id) {
+    #     message("Generated remarks ID: ", ns(paste0("remarks_", request_id)))
+    #     output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
+    #     bind_buttons(request_id)  # 按 RequestID 动态绑定按钮
+    #   })
+    # })
+    
     observe({
       requests <- requests_data()
-      refresh_todo_board()
-
-      # 为每条记录绑定按钮逻辑
       lapply(requests$RequestID, function(request_id) {
-        message("Generated remarks ID: ", ns(paste0("remarks_", request_id)))
-        output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
-        bind_buttons(request_id)  # 按 RequestID 动态绑定按钮
+        output[[ns(paste0("remarks_", request_id))]] <- renderUI({
+          tags$div(
+            tags$p("静态测试内容", style = "color: green;"),
+            tags$p(paste("Request ID:", request_id))
+          )
+        })
       })
     })
 
