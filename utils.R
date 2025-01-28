@@ -522,7 +522,7 @@ updateAccountOverview <- function(output, con) {
 }
 
 # 刷新账目记录
-refreshTransactionTable <- function(account_type, cache_env, transaction_table_hash, con) {
+refreshTransactionTable <- function(account_type, cache_env, transaction_table_hash, output, con) {
   table_map <- list(
     "工资卡" = "salary_card_table",
     "美元卡" = "dollar_card_table",
