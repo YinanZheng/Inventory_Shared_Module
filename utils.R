@@ -492,7 +492,7 @@ get_balance <- function(account_type, con) {
 }
 
 # 更新账户余额显示
-updateAccountOverview <- function(output) {
+updateAccountOverview <- function(output, con) {
   output$salary_balance <- renderText({
     sprintf("¥%.2f", get_balance("工资卡", con))
   })
