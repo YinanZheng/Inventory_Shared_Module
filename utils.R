@@ -2205,6 +2205,115 @@ render_request_board <- function(requests, output_id, output) {
   }
 }
 
+# 渲染留言板
+renderRemarks <- function(request_id, requests_data) {
+  # 提取当前 RequestID 的 Remarks
+  current_remarks <- requests_data() %>% filter(RequestID == request_id) %>% pull(Remarks)
+  
+  # 如果当前 Remarks 为空或 NULL，则初始化为空列表
+  if (is.null(current_remarks) || is.na(current_remarks)) {
+    remarks <- list()  # 如果为空，则返回空列表
+  } else {
+    remarks <- unlist(strsplit(trimws(current_remarks), ";"))  # 使用 ; 分隔记录
+  }
+  
+  # 生成 HTML 字符串
+  remarks_html <- if (length(remarks) > 0) {
+    paste0(
+      lapply(remarks, function(h) {
+        # 将记录拆分为时间和内容
+        split_remarks <- strsplit(h, ": ", fixed = TRUE)[[1]]
+        remark_time <- ifelse(length(split_remarks) > 1, split_remarks[1], "")  # 时间部分
+        remark_text <- ifelse(length(split_remarks) > 1, split_remarks[2], split_remarks[1])  # 信息部分
+        
+        # 生成每条记录的 HTML
+        paste0(
+          "<div style='margin-bottom: 8px;'>",
+          "<p style='font-size: 10px; color: grey; text-align: right; margin: 0;'>", remark_time, "</p>",  # 时间灰色右对齐
+          "<p style='font-size: 12px; color: black; text-align: left; margin: 0;'>", remark_text, "</p>",  # 信息黑色左对齐
+          "</div>"
+        )
+      }),
+      collapse = ""
+    )
+  } else {
+    "<p style='font-size: 12px; color: grey;'>暂无留言</p>"  # 无记录时的默认内容
+  }
+  
+  # 渲染 HTML
+  renderUI({
+    HTML(remarks_html)
+  })
+}
+
+# 渲染任务板与便签
+refresh_board <- function(requests, output) {
+  # 按 RequestType 筛选
+  purchase_requests <- requests %>% filter(RequestType == "采购")
+  outbound_requests <- requests %>% filter(RequestType == "出库")
+  
+  # 按 RequestStatus 和 CreatedAt 排序
+  purchase_requests <- purchase_requests %>%
+    arrange(factor(RequestStatus, levels = c("紧急", "待处理", "已完成")), CreatedAt) 
+  
+  outbound_requests <- outbound_requests %>%
+    arrange(factor(RequestStatus, levels = c("紧急", "待处理", "已完成")), CreatedAt) 
+  
+  # 处理采购请求面板
+  if (nrow(purchase_requests) == 0) {
+    render_request_board(data.frame(), "purchase_request_board", output)  # 清空采购面板
+  } else {
+    render_request_board(purchase_requests, "purchase_request_board", output)  # 渲染采购面板
+  }
+  
+  # 处理出库请求面板
+  if (nrow(outbound_requests) == 0) {
+    render_request_board(data.frame(), "outbound_request_board", output)  # 清空出库面板
+  } else {
+    render_request_board(outbound_requests, "outbound_request_board", output)  # 渲染出库面板
+  }
+}
+
+# 绑定便签按钮
+bind_buttons <- function(request_id, input, output, session, con) {
+  # 按钮绑定逻辑
+  observeEvent(input[[paste0("mark_urgent_", request_id)]], {
+    dbExecute(con, "UPDATE requests SET RequestStatus = '紧急' WHERE RequestID = ?", params = list(request_id))
+  }, ignoreInit = TRUE)  # 避免初始绑定时触发事件
+  
+  observeEvent(input[[paste0("complete_task_", request_id)]], {
+    dbExecute(con, "UPDATE requests SET RequestStatus = '已完成' WHERE RequestID = ?", params = list(request_id))
+  }, ignoreInit = TRUE)
+  
+  observeEvent(input[[paste0("delete_request_", request_id)]], {
+    dbExecute(con, "DELETE FROM requests WHERE RequestID = ?", params = list(request_id))
+  }, ignoreInit = TRUE)
+  
+  observeEvent(input[[paste0("submit_remark_", request_id)]], {
+    remark <- input[[paste0("remark_input_", request_id)]]
+    req(remark != "")
+    
+    # 根据系统类型添加前缀
+    remark_prefix <- if (system_type == "china") "[京]" else "[圳]"
+    new_remark <- paste0(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), ": ", remark_prefix, " ", remark)
+    
+    # 更新数据库中的 Remarks 字段
+    current_remarks <- requests_data() %>% filter(RequestID == request_id) %>% pull(Remarks)
+    current_remarks_text <- ifelse(is.na(current_remarks), "", current_remarks)
+    updated_remarks <- if (current_remarks_text == "") new_remark else paste(new_remark, current_remarks_text, sep = ";")
+    
+    dbExecute(con, "UPDATE requests SET Remarks = ? WHERE RequestID = ?", params = list(updated_remarks, request_id))
+    
+    # 动态更新 UI
+    output[[paste0("remarks_", request_id)]] <- renderUI({
+      renderRemarks(request_id, requests_data)
+    })
+    
+    # 清空输入框
+    updateTextInput(session, paste0("remark_input_", request_id), value = "")
+  }, ignoreInit = TRUE)
+}
+
 # 自定义函数
 `%||%` <- function(a, b) {
   if (!is.null(a)) a else b
