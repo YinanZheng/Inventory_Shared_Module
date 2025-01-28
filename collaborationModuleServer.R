@@ -227,6 +227,7 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
       lapply(requests$RequestID, function(request_id) {
         message("Generated remarks ID: ", ns(paste0("remarks_", request_id)))
         output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
+        message(renderRemarks(request_id))
         bind_buttons(request_id)  # 按 RequestID 动态绑定按钮
       })
     })
