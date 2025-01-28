@@ -673,7 +673,7 @@ getAccountType <- function(input) {
 }
 
 # 转账截图点击看大图
-handleTransactionImageClick <- function(account_type, input_table, image_col_index, input, session) {
+handleTransactionImageClick <- function(account_type, input_table, image_col_index, input, cache_env, con, session) {
   observeEvent(input[[paste0(input_table, "_cell_clicked")]], {
     info <- input[[paste0(input_table, "_cell_clicked")]]
     
