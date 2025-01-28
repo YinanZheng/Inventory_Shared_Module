@@ -2155,15 +2155,19 @@ render_request_board <- function(requests, output_id, output) {
                 style = "width: 38%; display: flex; flex-direction: column; align-items: center;",
                 tags$img(
                   src = ifelse(is.na(item$ItemImagePath), placeholder_150px_path, paste0(host_url, "/images/", basename(item$ItemImagePath))),
-                  style = "width: 100%; max-height: 120px; object-fit: contain; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 5px; cursor: pointer;",
+                  style = "width: 100%; max-height: 120px; object-fit: contain; box-shadow: 0px 4px 6px rgba(0,0,0,0.1); border-radius: 5px; margin-bottom: 5px; cursor: pointer;",
                   onclick = sprintf("Shiny.setInputValue('view_request_image', '%s')", 
                                     ifelse(is.na(item$ItemImagePath), placeholder_150px_path, paste0(host_url, "/images/", basename(item$ItemImagePath))))
                 ),
                 tags$div(
                   style = "width: 100%; text-align: center; font-size: 12px; color: #333;",
-                  tags$p(item$ItemDescription, style = "margin: 0;"),
+                  tags$p(tags$b(item$ItemDescription), style = "margin: 0;"),
                   tags$p(item$SKU, style = "margin: 0;"),
-                  tags$p(paste("供应商:", item$Maker), style = "margin: 0;"),
+                  tags$p(
+                    tags$b("供应商:"),
+                    tags$span(item$Maker, style = "color: blue; font-weight: bold;"),
+                    style = "margin: 0;"
+                  ),
                   tags$p(
                     tags$b("请求数量:"),
                     tags$span(item$Quantity, style = "color: red; font-weight: bold;"),
