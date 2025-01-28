@@ -627,7 +627,7 @@ fetchAndFormatTransactionData <- function(account_type, cache_env, con) {
 }
 
 # 从账目表中获取信息填入左侧
-fetchInputFromTable <- function(account_type, selected_row, cache_env, con) {
+fetchInputFromTable <- function(account_type, selected_row, cache_env, con, session) {
   if (!is.null(selected_row)) {
     # 获取指定账户的数据
     data <- fetchAndFormatTransactionData(account_type, cache_env, con)
@@ -673,7 +673,7 @@ getAccountType <- function(input) {
 }
 
 # 转账截图点击看大图
-handleTransactionImageClick <- function(account_type, input_table, image_col_index, input) {
+handleTransactionImageClick <- function(account_type, input_table, image_col_index, input, session) {
   observeEvent(input[[paste0(input_table, "_cell_clicked")]], {
     info <- input[[paste0(input_table, "_cell_clicked")]]
     
@@ -681,7 +681,7 @@ handleTransactionImageClick <- function(account_type, input_table, image_col_ind
     if (!is.null(info) && !is.null(info$col) && !is.null(info$row)) {
       if (info$col == image_col_index) {  # 图片列的索引
         # 获取点击的图片路径
-        selected_data <- fetchInputFromTable(account_type, input[[paste0(input_table, "_rows_selected")]])
+        selected_data <- fetchInputFromTable(account_type, input[[paste0(input_table, "_rows_selected")]], cache_env, con, session)
         img_path <- selected_data$TransactionImagePath
         
         req(img_path)  # 确保图片路径存在且不为空
