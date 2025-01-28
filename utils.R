@@ -2112,7 +2112,7 @@ match_tracking_number <- function(data, tracking_number_column, input_tracking_i
 }
 
 # 协作便签渲染函数：根据传入的请求数据和输出目标动态生成 UI
-render_request_board <- function(requests, output_id) {
+render_request_board <- function(requests, output_id, output) {
   if (nrow(requests) == 0) {
     output[[output_id]] <- renderUI({
       div(style = "text-align: center; color: grey; margin-top: 20px;", tags$p("当前没有待处理事项"))
