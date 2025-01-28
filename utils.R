@@ -708,12 +708,11 @@ handleTransactionImageClick <- function(account_type, input_table, image_col_ind
 }
 
 # 重置回登记模式
-resetToCreateMode <- function() {
-  is_update_mode(FALSE)  # 切换回登记模式
-  selected_TransactionID(NULL)  # 清空选中的 TransactionID
-  selected_TransactionImagePath(NULL)  # 清空选中的 TransactionImagePath
+resetToCreateMode <- function(is_update_mode, selected_TransactionID, selected_TransactionImagePath, session) {
+  is_update_mode(FALSE)
+  selected_TransactionID(NULL)
+  selected_TransactionImagePath(NULL)
   
-  # 更新按钮为“登记”
   updateActionButton(session, "record_transaction", label = "登记", icon = icon("save"))
 }
 
