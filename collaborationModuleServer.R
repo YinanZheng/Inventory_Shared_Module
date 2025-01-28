@@ -17,6 +17,9 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
         remarks <- unlist(strsplit(trimws(current_remarks), ";"))  # 使用 ; 分隔记录
       }
       
+      # 调试输出
+      message("Remarks for ", request_id, ": ", paste(remarks, collapse = ", "))
+      
       # 生成 HTML 字符串
       remarks_html <- if (length(remarks) > 0) {
         paste0(
