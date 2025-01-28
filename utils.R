@@ -2248,6 +2248,24 @@ renderRemarks <- function(request_id, requests) {
 
 # 渲染任务板与便签
 refresh_board <- function(requests, output) {
+  # 如果 requests 是空数据帧，直接渲染默认 UI
+  if (nrow(requests) == 0) {
+    output$purchase_request_board <- renderUI({
+      div(
+        style = "text-align: center; color: grey; margin-top: 20px;",
+        tags$p("当前没有采购请求")
+      )
+    })
+    
+    output$outbound_request_board <- renderUI({
+      div(
+        style = "text-align: center; color: grey; margin-top: 20px;",
+        tags$p("当前没有出库请求")
+      )
+    })
+    return()  # 提前返回，跳过后续逻辑
+  }
+  
   # 按 RequestType 筛选
   purchase_requests <- requests %>% filter(RequestType == "采购")
   outbound_requests <- requests %>% filter(RequestType == "出库")
