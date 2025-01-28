@@ -219,33 +219,18 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
       requests_data(requests)
     })
     
-    # observe({
-    #   requests <- requests_data()
-    #   refresh_todo_board()
-    # 
-    #   # 为每条记录绑定按钮逻辑
-    #   lapply(requests$RequestID, function(request_id) {
-    #     message("Generated remarks ID: ", ns(paste0("remarks_", request_id)))
-    #     output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
-    #     bind_buttons(request_id)  # 按 RequestID 动态绑定按钮
-    #   })
-    # })
-    
     observe({
       requests <- requests_data()
       refresh_todo_board()
-      
-      isolate({  # 使用 isolate 确保不触发过多依赖
-        lapply(requests$RequestID, function(request_id) {
-          output[[ns(paste0("remarks_", request_id))]] <- renderUI({
-            tags$div(
-              tags$p("静态测试内容", style = "color: green;"),
-              tags$p(paste("Request ID:", request_id))
-            )
-          })
-        })
+
+      # 为每条记录绑定按钮逻辑
+      lapply(requests$RequestID, function(request_id) {
+        message("Generated remarks ID: ", ns(paste0("remarks_", request_id)))
+        output[[ns(paste0("remarks_", request_id))]] <- renderRemarks(request_id)
+        bind_buttons(request_id)  # 按 RequestID 动态绑定按钮
       })
     })
+
 
     # SKU 和物品名输入互斥逻辑
     observeEvent(input$search_sku, {
