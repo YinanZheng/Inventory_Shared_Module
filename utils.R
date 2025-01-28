@@ -475,7 +475,7 @@ apply_dynamic_styles <- function(table, column_names) {
 }
 
 # 获取指定账户的余额
-get_balance <- function(account_type) {
+get_balance <- function(account_type, con) {
   # 查询指定账户的最新余额（按时间排序）
   query <- "
     SELECT Balance
@@ -494,27 +494,27 @@ get_balance <- function(account_type) {
 # 更新账户余额显示
 updateAccountOverview <- function(output) {
   output$salary_balance <- renderText({
-    sprintf("¥%.2f", get_balance("工资卡"))
+    sprintf("¥%.2f", get_balance("工资卡", con))
   })
   
   output$dollar_balance <- renderText({
-    sprintf("¥%.2f", get_balance("美元卡"))
+    sprintf("¥%.2f", get_balance("美元卡", con))
   })
   
   output$purchase_balance <- renderText({
-    sprintf("¥%.2f", get_balance("买货卡"))
+    sprintf("¥%.2f", get_balance("买货卡", con))
   })
   
   output$general_balance <- renderText({
-    sprintf("¥%.2f", get_balance("一般户卡"))
+    sprintf("¥%.2f", get_balance("一般户卡", con))
   })
   
   output$total_balance <- renderText({
     total <- sum(
-      get_balance("工资卡"),
-      get_balance("美元卡"),
-      get_balance("买货卡"),
-      get_balance("一般户卡"),
+      get_balance("工资卡", con),
+      get_balance("美元卡", con),
+      get_balance("买货卡", con),
+      get_balance("一般户卡", con),
       na.rm = TRUE
     )
     sprintf("¥%.2f", total)
