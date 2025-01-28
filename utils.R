@@ -1859,7 +1859,7 @@ adjust_inventory_quantity <- function(con, sku, adjustment) {
 }
 
 # 渲染订单物品卡片
-renderOrderItems <- function(output, output_name, order_items, deletable = FALSE) {
+renderOrderItems <- function(output, output_name, order_items, con, deletable = FALSE) {
   # 如果没有物品，返回提示信息
   if (is.null(order_items) || nrow(order_items) == 0) {
     output[[output_name]] <- renderUI({
