@@ -233,6 +233,7 @@ collaborationModuleServer <- function(id, con, unique_items_data) {
     
     observe({
       requests <- requests_data()
+      refresh_todo_board()
       lapply(requests$RequestID, function(request_id) {
         output[[ns(paste0("remarks_", request_id))]] <- renderUI({
           tags$div(
