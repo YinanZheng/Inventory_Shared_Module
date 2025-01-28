@@ -522,7 +522,7 @@ updateAccountOverview <- function(output, con) {
 }
 
 # 刷新账目记录
-refreshTransactionTable <- function(account_type) {
+refreshTransactionTable <- function(account_type, cache_env, con) {
   table_map <- list(
     "工资卡" = "salary_card_table",
     "美元卡" = "dollar_card_table",
@@ -533,7 +533,7 @@ refreshTransactionTable <- function(account_type) {
   # 检查账户类型是否有效
   if (account_type %in% names(table_map)) {
     # 获取数据
-    data <- fetchAndFormatTransactionData(account_type)
+    data <- fetchAndFormatTransactionData(account_type, cache_env, con)
     
     # 计算数据的哈希值
     current_hash <- digest::digest(data)
@@ -574,7 +574,7 @@ refreshTransactionTable <- function(account_type) {
 }
 
 # 获取格式化好的账目记录表
-fetchAndFormatTransactionData <- function(account_type) {
+fetchAndFormatTransactionData <- function(account_type, cache_env, con) {
   # 初始化缓存结构
   if (is.null(cache_env$transaction_data)) {
     cache_env$transaction_data <- list()
@@ -627,10 +627,10 @@ fetchAndFormatTransactionData <- function(account_type) {
 }
 
 # 从账目表中获取信息填入左侧
-fetchInputFromTable <- function(account_type, selected_row) {
+fetchInputFromTable <- function(account_type, selected_row, cache_env, con) {
   if (!is.null(selected_row)) {
     # 获取指定账户的数据
-    data <- fetchAndFormatTransactionData(account_type)
+    data <- fetchAndFormatTransactionData(account_type, cache_env, con)
     
     # 检查选中行是否有效
     if (selected_row > nrow(data) || selected_row <= 0 || nrow(data) == 0) {
