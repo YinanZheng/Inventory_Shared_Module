@@ -350,7 +350,7 @@ update_status <- function(con, unique_id, new_status = NULL, defect_status = NUL
 # 渲染物品信息（入库，出库页）
 renderItemInfo <- function(output, output_name, item_info = NULL, img_path, count_label = "待入库数", count_field = "PendingQuantity", img_height = "300px", image_only = FALSE) {
   if(image_only) {
-    output[[output_name]] <- renderUI({ d
+    output[[output_name]] <- renderUI({
       div(style = "text-align: center;", img(src = img_path, height = img_height, style = "border: 2px solid #ddd; border-radius: 8px; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);"))
     })
   } else {
