@@ -349,6 +349,9 @@ update_status <- function(con, unique_id, new_status = NULL, defect_status = NUL
 
 # 渲染物品信息（入库，出库页）
 renderItemInfo <- function(output, output_name, item_info = NULL, img_path, count_label = "待入库数", count_field = "PendingQuantity", img_height = "300px", image_only = FALSE) {
+  if (is.null(item_info) || nrow(item_info) == 0) item_info <- data.frame(ItemName = "", Maker = "", MajorType = "", MinorType = "", PendingQuantity = 0, AvailableForOutbound = 0, stringsAsFactors = FALSE)
+  count_value <- item_info[[count_field]][1]
+  
   if(image_only) {
     output[[output_name]] <- renderUI({
       div(style="text-align: center;",
@@ -360,9 +363,6 @@ renderItemInfo <- function(output, output_name, item_info = NULL, img_path, coun
           )
     })
   } else {
-    if (is.null(item_info) || nrow(item_info) == 0) item_info <- data.frame(ItemName = "", Maker = "", MajorType = "", MinorType = "", PendingQuantity = 0, AvailableForOutbound = 0, stringsAsFactors = FALSE)
-    count_value <- item_info[[count_field]][1]
-    
     output[[output_name]] <- renderUI({
       fluidRow(
         column(6, div(style = "text-align: center;", img(src = img_path, height = img_height, style = "border: 2px solid #ddd; border-radius: 8px; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);"))),
