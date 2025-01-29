@@ -1297,11 +1297,8 @@ handleSkuInput <- function(
   sku <- trimws(sku_input) # 清理空格
   
   if (is.null(sku) || sku == "") {
-    # 如果 SKU 为空，渲染默认空的商品信息
-    shinyjs::delay(5000, {
-      renderItemInfo(output, output_name, NULL, placeholder_path, count_label, count_field)
-    })
-    return(NULL) # 返回 NULL
+    renderItemInfo(output, output_name, NULL, placeholder_path, count_label, count_field)
+    return(NULL)
   }
   
   tryCatch({
