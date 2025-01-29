@@ -1246,7 +1246,8 @@ handleSkuInput <- function(
     con,              # 数据库连接
     output,           # 输出对象
     placeholder_path, # 默认占位图片路径
-    host_url          # 图片主机 URL
+    host_url,          # 图片主机 URL
+    image_mode = FALSE
 ) {
   sku <- trimws(sku_input) # 清理空格
   
@@ -1280,7 +1281,21 @@ handleSkuInput <- function(
       count_field = count_field
     )
     
-    # 返回 count_field 的值
+    if(image_mode) {
+      renderItemInfo(
+        output = output,
+        output_name = paste0(output_name, "_image_mode"),
+        item_info = NULL,
+        img_path = ifelse(
+          is.na(item_info$ItemImagePath[1]),
+          placeholder_path,
+          paste0(host_url, "/images/", basename(item_info$ItemImagePath[1]))
+        ),
+        image_only = TRUE
+      )
+    }
+    
+    # 返回 item_info
     return(item_info[[count_field]][1])
     
   }, error = function(e) {
