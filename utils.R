@@ -357,8 +357,8 @@ renderItemInfo <- function(output, output_name, item_info = NULL, img_path, coun
       div(style="text-align: center;",
           img(src=img_path, height="600px", style="border: 2px solid #ddd; border-radius: 8px; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);"),
           tags$table(style="margin: 10px auto; border-collapse: collapse;",
-                     tags$tr(tags$td(tags$strong(count_label), style="padding: 8px 10px; vertical-align: top;"),
-                             tags$td(tags$span(ifelse(count_value == 0, paste0("无", count_label), count_value), style="color: #FF4500; font-weight: bold; font-size: 20px;")))
+                     tags$tr(tags$td(tags$strong(count_label), style="padding: 8px 10px; vertical-align: top; font-size: 48px;"),
+                             tags$td(tags$span(ifelse(count_value == 0, paste0("无", count_label), count_value), style="color: #FF4500; font-weight: bold; font-size: 48px;")))
                      )
           )
     })
