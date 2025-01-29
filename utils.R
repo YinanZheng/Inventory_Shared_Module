@@ -348,25 +348,31 @@ update_status <- function(con, unique_id, new_status = NULL, defect_status = NUL
 }
 
 # 渲染物品信息（入库，出库页）
-renderItemInfo <- function(output, output_name, item_info, img_path, count_label = "待入库数", count_field = "PendingQuantity", img_height = "300px") {
-  if (is.null(item_info) || nrow(item_info) == 0) item_info <- data.frame(ItemName = "", Maker = "", MajorType = "", MinorType = "", PendingQuantity = 0, AvailableForOutbound = 0, stringsAsFactors = FALSE)
-  count_value <- item_info[[count_field]][1]
-  
-  output[[output_name]] <- renderUI({
-    fluidRow(
-      column(6, div(style = "text-align: center;", img(src = img_path, height = img_height, style = "border: 2px solid #ddd; border-radius: 8px; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);"))),
-      column(6, div(style = "padding: 20px; background-color: #f7f7f7; border: 1px solid #e0e0e0; border-radius: 8px; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1); height: " %||% img_height,
-                    tags$h4("商品信息", style = "border-bottom: 3px solid #4CAF50; margin-bottom: 15px; padding-bottom: 8px; font-weight: bold; color: #333;"),
-                    tags$table(style = "width: 100%; font-size: 16px; color: #444;",
-                               tags$tr(tags$td(tags$strong("商品名:"), style = "padding: 8px 10px; width: 120px; vertical-align: top;"), tags$td(tags$span(item_info$ItemName[1], style = "color: #4CAF50; font-weight: bold;"))),
-                               tags$tr(tags$td(tags$strong("供应商:"), style = "padding: 8px 10px; vertical-align: top;"), tags$td(tags$span(item_info$Maker[1], style = "color: #4CAF50;"))),
-                               tags$tr(tags$td(tags$strong("大类:"), style = "padding: 8px 10px; vertical-align: top;"), tags$td(tags$span(item_info$MajorType[1], style = "color: #4CAF50;"))),
-                               tags$tr(tags$td(tags$strong("小类:"), style = "padding: 8px 10px; vertical-align: top;"), tags$td(tags$span(item_info$MinorType[1], style = "color: #4CAF50;"))),
-                               tags$tr(tags$td(tags$strong(count_label), style = "padding: 8px 10px; vertical-align: top;"), tags$td(tags$span(ifelse(count_value == 0, paste0("无", count_label), count_value), style = "color: #FF4500; font-weight: bold;")))
-                    )
-      ))
-    )
-  })
+renderItemInfo <- function(output, output_name, item_info = NULL, img_path, count_label = "待入库数", count_field = "PendingQuantity", img_height = "300px", image_only = FALSE) {
+  if(image_only) {
+    output[[output_name]] <- renderUI({ d
+      div(style = "text-align: center;", img(src = img_path, height = img_height, style = "border: 2px solid #ddd; border-radius: 8px; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);"))
+    })
+  } else {
+    if (is.null(item_info) || nrow(item_info) == 0) item_info <- data.frame(ItemName = "", Maker = "", MajorType = "", MinorType = "", PendingQuantity = 0, AvailableForOutbound = 0, stringsAsFactors = FALSE)
+    count_value <- item_info[[count_field]][1]
+    
+    output[[output_name]] <- renderUI({
+      fluidRow(
+        column(6, div(style = "text-align: center;", img(src = img_path, height = img_height, style = "border: 2px solid #ddd; border-radius: 8px; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);"))),
+        column(6, div(style = "padding: 20px; background-color: #f7f7f7; border: 1px solid #e0e0e0; border-radius: 8px; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1); height: " %||% img_height,
+                      tags$h4("商品信息", style = "border-bottom: 3px solid #4CAF50; margin-bottom: 15px; padding-bottom: 8px; font-weight: bold; color: #333;"),
+                      tags$table(style = "width: 100%; font-size: 16px; color: #444;",
+                                 tags$tr(tags$td(tags$strong("商品名:"), style = "padding: 8px 10px; width: 120px; vertical-align: top;"), tags$td(tags$span(item_info$ItemName[1], style = "color: #4CAF50; font-weight: bold;"))),
+                                 tags$tr(tags$td(tags$strong("供应商:"), style = "padding: 8px 10px; vertical-align: top;"), tags$td(tags$span(item_info$Maker[1], style = "color: #4CAF50;"))),
+                                 tags$tr(tags$td(tags$strong("大类:"), style = "padding: 8px 10px; vertical-align: top;"), tags$td(tags$span(item_info$MajorType[1], style = "color: #4CAF50;"))),
+                                 tags$tr(tags$td(tags$strong("小类:"), style = "padding: 8px 10px; vertical-align: top;"), tags$td(tags$span(item_info$MinorType[1], style = "color: #4CAF50;"))),
+                                 tags$tr(tags$td(tags$strong(count_label), style = "padding: 8px 10px; vertical-align: top;"), tags$td(tags$span(ifelse(count_value == 0, paste0("无", count_label), count_value), style = "color: #FF4500; font-weight: bold;")))
+                      )
+        ))
+      )
+    })
+  }
 }
 
 # 状态渲染样式
@@ -1304,9 +1310,7 @@ handleOperation <- function(
   
   if (is.null(sku) || sku == "") {
     showNotification("请先扫描 SKU！", type = "error")
-    shinyjs::delay(5000, {
-      renderItemInfo(output, output_name, NULL, placeholder_300px_path, count_label, count_field)
-    })   
+    renderItemInfo(output, output_name, NULL, placeholder_300px_path, count_label, count_field)
     return()
   }
   
