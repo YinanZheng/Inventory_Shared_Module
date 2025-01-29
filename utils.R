@@ -1449,7 +1449,7 @@ handleOperation <- function(
     updateTextInput(session, paste0(operation_name, "_sku"), value = "")
     if (operation_name == "入库") updateCheckboxInput(session, "defective_item", value = FALSE)
     
-    return(sku_items)
+    return(unique_id)
     
   }, error = function(e) {
     # 错误处理
