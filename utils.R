@@ -351,7 +351,13 @@ update_status <- function(con, unique_id, new_status = NULL, defect_status = NUL
 renderItemInfo <- function(output, output_name, item_info = NULL, img_path, count_label = "待入库数", count_field = "PendingQuantity", img_height = "300px", image_only = FALSE) {
   if(image_only) {
     output[[output_name]] <- renderUI({
-      div(style = "text-align: center;", img(src = img_path, height = "600px", style = "border: 2px solid #ddd; border-radius: 8px; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);"))
+      div(style="text-align: center;",
+          img(src=img_path, height="600px", style="border: 2px solid #ddd; border-radius: 8px; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);"),
+          tags$table(style="margin: 10px auto; border-collapse: collapse;",
+                     tags$tr(tags$td(tags$strong(count_label), style="padding: 8px 10px; vertical-align: top;"),
+                             tags$td(tags$span(ifelse(count_value == 0, paste0("无", count_label), count_value), style="color: #FF4500; font-weight: bold;")))
+                     )
+          )
     })
   } else {
     if (is.null(item_info) || nrow(item_info) == 0) item_info <- data.frame(ItemName = "", Maker = "", MajorType = "", MinorType = "", PendingQuantity = 0, AvailableForOutbound = 0, stringsAsFactors = FALSE)
@@ -1285,7 +1291,7 @@ handleSkuInput <- function(
       renderItemInfo(
         output = output,
         output_name = paste0(output_name, "_image_mode"),
-        item_info = NULL,
+        item_info = item_info,
         img_path = ifelse(
           is.na(item_info$ItemImagePath[1]),
           placeholder_path,
