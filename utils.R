@@ -2066,7 +2066,7 @@ match_tracking_number <- function(data, tracking_number_column, input_tracking_i
         .data[[tracking_number_column]] == cleaned_tracking_id
     )
   
-  # **Step 2: 如果精准匹配为空，则检查子字符串匹配**
+  # **Step 2: 如果精准匹配失败，则检查是否 `tracking_number_column` 出现在 `input_tracking_id` 内**
   if (nrow(matched_data) == 0) {
     matched_data <- data %>%
       filter(
