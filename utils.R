@@ -2058,23 +2058,13 @@ match_tracking_number <- function(data, tracking_number_column, input_tracking_i
   # 清理输入运单号（去掉空格和非数字字符）
   cleaned_tracking_id <- gsub("[^0-9]", "", trimws(input_tracking_id))
   
-  # **Step 1: 精准匹配完整ID**
+  # **使用 `grepl()` 进行子字符串匹配**
   matched_data <- data %>%
     filter(
       !is.na(.data[[tracking_number_column]]) & 
         .data[[tracking_number_column]] != "" & 
-        .data[[tracking_number_column]] == cleaned_tracking_id
+        Vectorize(grepl)(.data[[tracking_number_column]], cleaned_tracking_id, fixed = TRUE)  # ✅ 关键匹配逻辑
     )
-  
-  # **Step 2: 如果精准匹配失败，则检查是否 `tracking_number_column` 出现在 `input_tracking_id` 内**
-  if (nrow(matched_data) == 0) {
-    matched_data <- data %>%
-      filter(
-        !is.na(.data[[tracking_number_column]]) & 
-          .data[[tracking_number_column]] != "" & 
-          Vectorize(grepl)(.data[[tracking_number_column]], cleaned_tracking_id, fixed = TRUE)  # ✅ 这里修正
-      )
-  }
   
   return(matched_data)
 }
