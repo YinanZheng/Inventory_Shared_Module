@@ -2072,7 +2072,7 @@ match_tracking_number <- function(data, tracking_number_column, input_tracking_i
       filter(
         !is.na(.data[[tracking_number_column]]) & 
           .data[[tracking_number_column]] != "" & 
-          grepl(.data[[tracking_number_column]], cleaned_tracking_id, fixed = TRUE)
+          Vectorize(grepl)(.data[[tracking_number_column]], cleaned_tracking_id, fixed = TRUE)  # ✅ 这里修正
       )
   }
   
