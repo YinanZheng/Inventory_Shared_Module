@@ -2055,27 +2055,16 @@ createSearchableDropdown <- function(input_id, label, data, placeholder = "搜�
 
 # 匹配USPS单号
 match_tracking_number <- function(data, tracking_number_column, input_tracking_id) {
-  # 清理输入运单号
+  # 清理输入运单号，确保都是纯数字
   cleaned_tracking_id <- gsub("[^0-9]", "", trimws(input_tracking_id))
   
-  # 初次精准匹配
+  # 进行匹配：tracking_number_column 是否是 input_tracking_id 的子串
   matched_data <- data %>%
     filter(
       !is.na(.data[[tracking_number_column]]) &
         .data[[tracking_number_column]] != "" &
-        .data[[tracking_number_column]] == cleaned_tracking_id
+        grepl(.data[[tracking_number_column]], cleaned_tracking_id, fixed = TRUE) # 直接查找子字符串
     )
-  
-  # 如果首次匹配为空且输入运单号长度超过 22，则截取后 22 位进行二次匹配
-  if (nrow(matched_data) == 0 && nchar(cleaned_tracking_id) > 22) {
-    trimmed_tracking_id <- substr(cleaned_tracking_id, 9, nchar(cleaned_tracking_id))
-    matched_data <- data %>%
-      filter(
-        !is.na(.data[[tracking_number_column]]) &
-          .data[[tracking_number_column]] != "" &
-          .data[[tracking_number_column]] == trimmed_tracking_id
-      )
-  }
   
   return(matched_data)
 }
