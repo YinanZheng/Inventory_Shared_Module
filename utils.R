@@ -1154,7 +1154,7 @@ update_order_id <- function(con, unique_ids, order_id) {
 }
 
 # 更新订单状态
-update_order_status <- function(order_id, new_status, updated_notes = NULL, con) {
+update_order_status <- function(order_id, new_status, updated_notes = NULL, refresh_trigger = NULL, con) {
   tryCatch({
     if (is.null(updated_notes)) {
       # 仅更新状态
@@ -1179,6 +1179,10 @@ update_order_status <- function(order_id, new_status, updated_notes = NULL, con)
         params = list(new_status, updated_notes, order_id)
       )
       showNotification(sprintf("订单 %s 状态更新为 '%s'，备注已更新！", order_id, new_status), type = "message")
+    }
+    # 触发刷新
+    if (!is.null(refresh_trigger)) {
+      refresh_trigger(!refresh_trigger())
     }
   }, error = function(e) {
     showNotification(sprintf("更新订单状态和备注时发生错误：%s", e$message), type = "error")
