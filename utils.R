@@ -2055,10 +2055,10 @@ createSearchableDropdown <- function(input_id, label, data, placeholder = "搜�
 
 # 匹配USPS单号
 match_tracking_number <- function(data, tracking_number_column, input_tracking_id) {
-  # 清理输入运单号
+  # 清理输入运单号（去掉空格和非数字字符）
   cleaned_tracking_id <- gsub("[^0-9]", "", trimws(input_tracking_id))
   
-  # **精准匹配** 完整运单号
+  # **精准匹配**（tracking_number_column 完全等于 input_tracking_id）
   matched_data <- data %>%
     filter(
       !is.na(.data[[tracking_number_column]]) &
@@ -2066,13 +2066,13 @@ match_tracking_number <- function(data, tracking_number_column, input_tracking_i
         .data[[tracking_number_column]] == cleaned_tracking_id
     )
   
-  # **如果精准匹配为空**，尝试模糊匹配，寻找 tracking_number_column 是否为 input_tracking_id 的子串
+  # **如果精准匹配失败，进行子字符串匹配**
   if (nrow(matched_data) == 0) {
     matched_data <- data %>%
       filter(
         !is.na(.data[[tracking_number_column]]) &
           .data[[tracking_number_column]] != "" &
-          grepl(.data[[tracking_number_column]], cleaned_tracking_id, fixed = TRUE) # 查找是否为子字符串
+          grepl(cleaned_tracking_id, .data[[tracking_number_column]], fixed = TRUE)  # 这里方向修正！
       )
   }
   
