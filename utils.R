@@ -2088,7 +2088,8 @@ render_request_board <- function(requests, output_id, output) {
             item$RequestStatus,
             "紧急" = list(bg = "#ffcdd2", border = "#e57373"),    # 红色背景，深红色边框
             "待处理" = list(bg = "#fff9c4", border = "#ffd54f"),  # 橙色背景，深橙色边框
-            "已完成" = list(bg = "#c8e6c9", border = "#81c784")   # 绿色背景，深绿色边框
+            "已完成" = list(bg = "#c8e6c9", border = "#81c784"),   # 绿色背景，深绿色边框
+            list(bg = "#f0f0f0", border = "#bdbdbd")  # 默认灰色
           )
           
           # 渲染便签卡片
@@ -2174,7 +2175,7 @@ renderRemarks <- function(request_id, requests) {
   current_remarks <- requests %>% filter(RequestID == request_id) %>% pull(Remarks)
   
   # 如果当前 Remarks 为空或 NULL，则初始化为空列表
-  if (is.null(current_remarks) || is.na(current_remarks)) {
+  if (is.null(current_remarks) || is.na(current_remarks) || current_remarks == "") {
     remarks <- list()  # 如果为空，则返回空列表
   } else {
     remarks <- unlist(strsplit(trimws(current_remarks), ";"))  # 使用 ; 分隔记录
@@ -2273,7 +2274,7 @@ refresh_board <- function(requests, output) {
   if (nrow(provider_arranged) == 0) {
     render_request_board(data.frame(), "provider_arranged_board", output)  # 清空已安排面板
   } else {
-    render_request_board(provider_arranged, "purchase_request_board", output)  # 渲染已安排面板
+    render_request_board(provider_arranged, "provider_arranged_board", output)  # 渲染已安排面板
   }
   
   # 处理已付款面板
@@ -2312,6 +2313,7 @@ bind_buttons <- function(request_id, requests, input, output, session, con) {
   
   observeEvent(input[[paste0("delete_request_", request_id)]], {
     dbExecute(con, "DELETE FROM requests WHERE RequestID = ?", params = list(request_id))
+    new_requests <- dbGetQuery(con, "SELECT * FROM requests")  # 重新获取最新数据
     refresh_board(requests, output)
   }, ignoreInit = TRUE)
   
