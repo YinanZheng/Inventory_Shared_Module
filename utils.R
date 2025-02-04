@@ -2212,84 +2212,46 @@ renderRemarks <- function(request_id, requests) {
 
 # 渲染任务板与便签
 refresh_board <- function(requests, output) {
-  # 如果 requests 是空数据帧，直接渲染默认 UI
+  # 定义 RequestType 与对应的 UI 输出 ID
+  request_types <- list(
+    "采购" = "purchase_request_board",
+    "安排" = "provider_arranged_board",
+    "付款" = "done_paid_board",
+    "出库" = "outbound_request_board"
+  )
+  
+  # 如果 requests 是空数据帧，则清空所有面板
   if (nrow(requests) == 0) {
-    output$purchase_request_board <- renderUI({
-      div(
-        style = "text-align: center; color: grey; margin-top: 20px;",
-        tags$p("当前没有待处理事项")
-      )
+    lapply(request_types, function(output_id) {
+      output[[output_id]] <- renderUI({
+        div(style = "text-align: center; color: grey; margin-top: 20px;", tags$p("当前没有待处理事项"))
+      })
     })
+    return()  # 直接返回，跳过后续逻辑
+  }
+  
+  # 定义排序函数
+  sort_requests <- function(df) {
+    df %>%
+      arrange(
+        factor(RequestStatus, levels = c("紧急", "待处理", "已完成")),
+        Maker,  # 让同一供应商的请求排在一起
+        CreatedAt
+      )
+  }
+  
+  # 遍历不同的 RequestType，筛选、排序并渲染 UI
+  lapply(names(request_types), function(req_type) {
+    output_id <- request_types[[req_type]]
+    filtered_requests <- requests %>% filter(RequestType == req_type) %>% sort_requests()
     
-    output$provider_arranged_board <- renderUI({
-      div(
-        style = "text-align: center; color: grey; margin-top: 20px;",
-        tags$p("当前没有待处理事项")
-      )
-    })
-    
-    output$done_paid_board <- renderUI({
-      div(
-        style = "text-align: center; color: grey; margin-top: 20px;",
-        tags$p("当前没有待处理事项")
-      )
-    })
-    
-    output$outbound_request_board <- renderUI({
-      div(
-        style = "text-align: center; color: grey; margin-top: 20px;",
-        tags$p("当前没有待处理事项")
-      )
-    })
-    return()  # 提前返回，跳过后续逻辑
-  }
-  
-  # 按 RequestType 筛选
-  purchase_requests <- requests %>% filter(RequestType == "采购")
-  provider_arranged <- requests %>% filter(RequestType == "安排")
-  done_paid <- requests %>% filter(RequestType == "付款")
-  outbound_requests <- requests %>% filter(RequestType == "出库")
-  
-  # 按 RequestStatus 和 CreatedAt 排序
-  purchase_requests <- purchase_requests %>%
-    arrange(factor(RequestStatus, levels = c("紧急", "待处理", "已完成")), CreatedAt) 
-  
-  provider_arranged <- provider_arranged %>%
-    arrange(factor(RequestStatus, levels = c("紧急", "待处理", "已完成")), CreatedAt) 
-  
-  done_paid <- done_paid %>%
-    arrange(factor(RequestStatus, levels = c("紧急", "待处理", "已完成")), CreatedAt) 
-  
-  outbound_requests <- outbound_requests %>%
-    arrange(factor(RequestStatus, levels = c("紧急", "待处理", "已完成")), CreatedAt) 
-  
-  # 处理采购请求面板
-  if (nrow(purchase_requests) == 0) {
-    render_request_board(data.frame(), "purchase_request_board", output)  # 清空采购面板
-  } else {
-    render_request_board(purchase_requests, "purchase_request_board", output)  # 渲染采购面板
-  }
-
-  # 处理已安排面板
-  if (nrow(provider_arranged) == 0) {
-    render_request_board(data.frame(), "provider_arranged_board", output)  # 清空已安排面板
-  } else {
-    render_request_board(provider_arranged, "provider_arranged_board", output)  # 渲染已安排面板
-  }
-  
-  # 处理已付款面板
-  if (nrow(done_paid) == 0) {
-    render_request_board(data.frame(), "done_paid_board", output)  # 清空已付款面板
-  } else {
-    render_request_board(done_paid, "done_paid_board", output)  # 渲染已付款面板
-  }
-  
-  # 处理出库请求面板
-  if (nrow(outbound_requests) == 0) {
-    render_request_board(data.frame(), "outbound_request_board", output)  # 清空出库面板
-  } else {
-    render_request_board(outbound_requests, "outbound_request_board", output)  # 渲染出库面板
-  }
+    # 处理 UI 渲染
+    if (nrow(filtered_requests) == 0) {
+      render_request_board(data.frame(), output_id, output)  # 清空面板
+    } else {
+      render_request_board(filtered_requests, output_id, output)  # 渲染面板
+    }
+  })
 }
 
 # 绑定便签按钮
