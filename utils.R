@@ -2078,7 +2078,7 @@ render_request_board <- function(requests, output_id, output) {
   } else {
     output[[output_id]] <- renderUI({
       div(
-        style = "display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 10px; padding: 10px;",
+        style = "display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 5px; padding: 5px;",
         lapply(1:nrow(requests), function(i) {
           item <- requests[i, , drop = FALSE]
           request_id <- item$RequestID
