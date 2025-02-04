@@ -2154,7 +2154,11 @@ render_request_board <- function(requests, output_id, output) {
             tags$div(
               style = "width: 100%; display: flex; justify-content: space-between; margin-top: 5px;",
               actionButton(paste0("mark_urgent_", request_id), "加急", class = "btn-danger", style = "width: 30%; height: 45px;"),
-              actionButton(paste0("complete_task_", request_id), "完成", class = "btn-primary", style = "width: 30%; height: 45px;"),
+              
+              if (output_id == "purchase_request_board") actionButton(paste0("provider_arranged_", request_id), "已安排", class = "btn-primary", style = "width: 30%; height: 45px;"),
+              if (output_id == "provider_arranged_board") actionButton(paste0("done_paid_", request_id), "已付款", class = "btn-primary", style = "width: 30%; height: 45px;"),
+              if (output_id %in% c("done_paid_board", "outbound_request_board")) actionButton(paste0("complete_task_", request_id), "完成", class = "btn-primary", style = "width: 30%; height: 45px;"),
+              
               actionButton(paste0("delete_request_", request_id), "删除", class = "btn-warning", style = "width: 30%; height: 45px;")
             )
           )
@@ -2212,14 +2216,28 @@ refresh_board <- function(requests, output) {
     output$purchase_request_board <- renderUI({
       div(
         style = "text-align: center; color: grey; margin-top: 20px;",
-        tags$p("当前没有采购请求")
+        tags$p("当前没有待处理事项")
+      )
+    })
+    
+    output$provider_arranged_board <- renderUI({
+      div(
+        style = "text-align: center; color: grey; margin-top: 20px;",
+        tags$p("当前没有待处理事项")
+      )
+    })
+    
+    output$done_paid_board <- renderUI({
+      div(
+        style = "text-align: center; color: grey; margin-top: 20px;",
+        tags$p("当前没有待处理事项")
       )
     })
     
     output$outbound_request_board <- renderUI({
       div(
         style = "text-align: center; color: grey; margin-top: 20px;",
-        tags$p("当前没有出库请求")
+        tags$p("当前没有待处理事项")
       )
     })
     return()  # 提前返回，跳过后续逻辑
@@ -2227,10 +2245,18 @@ refresh_board <- function(requests, output) {
   
   # 按 RequestType 筛选
   purchase_requests <- requests %>% filter(RequestType == "采购")
+  provider_arranged <- requests %>% filter(RequestType == "安排")
+  done_paid <- requests %>% filter(RequestType == "付款")
   outbound_requests <- requests %>% filter(RequestType == "出库")
   
   # 按 RequestStatus 和 CreatedAt 排序
   purchase_requests <- purchase_requests %>%
+    arrange(factor(RequestStatus, levels = c("紧急", "待处理", "已完成")), CreatedAt) 
+  
+  provider_arranged <- provider_arranged %>%
+    arrange(factor(RequestStatus, levels = c("紧急", "待处理", "已完成")), CreatedAt) 
+  
+  done_paid <- done_paid %>%
     arrange(factor(RequestStatus, levels = c("紧急", "待处理", "已完成")), CreatedAt) 
   
   outbound_requests <- outbound_requests %>%
@@ -2241,6 +2267,20 @@ refresh_board <- function(requests, output) {
     render_request_board(data.frame(), "purchase_request_board", output)  # 清空采购面板
   } else {
     render_request_board(purchase_requests, "purchase_request_board", output)  # 渲染采购面板
+  }
+
+  # 处理已安排面板
+  if (nrow(provider_arranged) == 0) {
+    render_request_board(data.frame(), "provider_arranged_board", output)  # 清空已安排面板
+  } else {
+    render_request_board(provider_arranged, "purchase_request_board", output)  # 渲染已安排面板
+  }
+  
+  # 处理已付款面板
+  if (nrow(done_paid) == 0) {
+    render_request_board(data.frame(), "done_paid_board", output)  # 清空已付款面板
+  } else {
+    render_request_board(done_paid, "done_paid_board", output)  # 渲染已付款面板
   }
   
   # 处理出库请求面板
@@ -2257,6 +2297,14 @@ bind_buttons <- function(request_id, requests, input, output, session, con) {
   observeEvent(input[[paste0("mark_urgent_", request_id)]], {
     dbExecute(con, "UPDATE requests SET RequestStatus = '紧急' WHERE RequestID = ?", params = list(request_id))
   }, ignoreInit = TRUE)  # 避免初始绑定时触发事件
+  
+  observeEvent(input[[paste0("provider_arranged_", request_id)]], {
+    dbExecute(con, "UPDATE requests SET RequestType = '安排' WHERE RequestID = ?", params = list(request_id))
+  }, ignoreInit = TRUE)
+  
+  observeEvent(input[[paste0("done_paid_", request_id)]], {
+    dbExecute(con, "UPDATE requests SET RequestType = '付款' WHERE RequestID = ?", params = list(request_id))
+  }, ignoreInit = TRUE)
   
   observeEvent(input[[paste0("complete_task_", request_id)]], {
     dbExecute(con, "UPDATE requests SET RequestStatus = '已完成' WHERE RequestID = ?", params = list(request_id))

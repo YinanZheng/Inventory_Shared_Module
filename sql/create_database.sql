@@ -122,7 +122,7 @@ CREATE TABLE `requests` (
   `Quantity` int NOT NULL COMMENT '采购数量',
   `RequestStatus` enum('待处理','已完成','紧急') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '待处理',
   `Remarks` text COLLATE utf8mb4_unicode_ci COMMENT '留言',
-  `RequestType` enum('采购','出库') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '采购' COMMENT '请求类型',
+  `RequestType` enum('采购','出库','安排','付款') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '采购' COMMENT '请求类型',
   `CreatedAt` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `UpdatedAt` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`RequestID`)
