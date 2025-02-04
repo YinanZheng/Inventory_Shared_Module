@@ -1204,7 +1204,7 @@ deleteConfirmationModal <- function(item_count) {
 # 获取SKU的操作信息
 fetchSkuOperationData <- function(sku, con, system_type) {
   # 根据地区动态生成查询语句
-  query <- if (system_type == "china") {
+  query <- if (system_type == "cn") {
     "
       SELECT 
         inv.ItemImagePath,
@@ -2272,7 +2272,7 @@ bind_buttons <- function(request_id, requests, input, output, session, con) {
     req(remark != "")
     
     # 根据系统类型添加前缀
-    remark_prefix <- if (system_type == "china") "[京]" else "[圳]"
+    remark_prefix <- if (system_type == "cn") "[京]" else "[圳]"
     new_remark <- paste0(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), ": ", remark_prefix, " ", remark)
     
     # 更新数据库中的 Remarks 字段
