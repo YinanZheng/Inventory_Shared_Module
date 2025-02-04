@@ -2097,7 +2097,7 @@ render_request_board <- function(requests, output_id, output) {
             class = "note-card",
             style = sprintf("
               position: relative;
-              width: 300px;
+              width: 350px;
               background-color: %s;
               border: 2px solid %s;
               border-radius: 10px;
@@ -2112,7 +2112,7 @@ render_request_board <- function(requests, output_id, output) {
             div(
               style = "display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;",
               tags$div(
-                style = "width: 38%; display: flex; flex-direction: column; align-items: center;",
+                style = "width: 42%; display: flex; flex-direction: column; align-items: center;",
                 tags$img(
                   src = ifelse(is.na(item$ItemImagePath), placeholder_150px_path, paste0(host_url, "/images/", basename(item$ItemImagePath))),
                   style = "width: 100%; max-height: 120px; object-fit: contain; box-shadow: 0px 4px 6px rgba(0,0,0,0.1); border-radius: 5px; margin-bottom: 5px; cursor: pointer;",
@@ -2136,7 +2136,7 @@ render_request_board <- function(requests, output_id, output) {
                 )
               ),
               tags$div(
-                style = "width: 58%; height: 194px; border: 1px solid #ddd; padding: 5px; background-color: #fff; overflow-y: auto; border-radius: 5px;",
+                style = "width: 54%; height: 194px; border: 1px solid #ddd; padding: 5px; background-color: #fff; overflow-y: auto; border-radius: 5px;",
                 uiOutput(paste0("remarks_", item$RequestID))  # 使用 RequestID 动态绑定到具体记录
               )
             ),
