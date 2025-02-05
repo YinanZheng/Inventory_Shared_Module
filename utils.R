@@ -2361,6 +2361,25 @@ process_data <- function(dat) {
   )
 }
 
+# 计算总货值和总运费
+calculate_totals <- function(data) {
+  total_value <- sum(c(
+    data$domestic$value,
+    data$logistics$value,
+    data$us$value,
+    data$sold$value
+  ), na.rm = TRUE)
+  
+  total_shipping <- sum(c(
+    data$domestic$shipping,
+    data$logistics$shipping,
+    data$us$shipping,
+    data$sold$shipping
+  ), na.rm = TRUE)
+  
+  list(total_value = total_value, total_shipping = total_shipping)
+}
+
 # 自定义函数
 `%||%` <- function(a, b) {
   if (!is.null(a)) a else b
