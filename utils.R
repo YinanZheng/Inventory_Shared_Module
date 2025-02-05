@@ -610,6 +610,13 @@ fetchInputFromTable <- function(account_type, selected_row, cache_env, con, sess
     updateTimeInput(session, "custom_time", value = format(as.POSIXct(selected_data$TransactionTime), "%H:%M:%S"))
     updateTextAreaInput(session, "remarks", value = selected_data$Remarks)
     
+    # 更新 transaction_category 下拉菜单
+    if (!is.null(selected_data$TransactionType) && selected_data$TransactionType %in% c("采购", "税费", "杂费", "工资", "债务", "社保", "其他")) {
+      updateSelectInput(session, "transaction_category", selected = selected_data$TransactionType)
+    } else {
+      updateSelectInput(session, "transaction_category", selected = "其他")  # 如果数据为空，默认设置为 "其他"
+    }
+    
     # 返回 TransactionID 和 TransactionImagePath
     return(list(
       TransactionID = selected_data$TransactionID,
