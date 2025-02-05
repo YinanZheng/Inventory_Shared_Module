@@ -526,8 +526,19 @@ refreshTransactionTable <- function(account_type, cache_env, transaction_table_h
     
     # 更新输出
     output[[table_map[[account_type]]]] <- renderDT({
-      table_result$datatable
-    })
+      datatable <- table_result$datatable
+      
+      # 添加颜色样式
+      datatable %>%
+        formatStyle(
+          "TransactionType",
+          backgroundColor = styleEqual(
+            c("采购", "税费", "杂费", "工资", "债务", "社保", "其他"), 
+            c("#FFDDC1", "#FFD700", "#87CEEB", "#98FB98", "#FF6347", "#DDA0DD", "#D3D3D3")  # 颜色代码
+          ),
+          color = "black"
+        )    
+      })
   } else {
     showNotification("无效的账户类型！", type = "error")
   }
