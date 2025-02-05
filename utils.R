@@ -431,6 +431,22 @@ apply_dynamic_styles <- function(table, column_names) {
       )
   }
   
+  # 转账类别样式
+  if ("转账类别" %in% column_names) {
+    table <- table %>%
+      formatStyle(
+        "转账类别",
+        backgroundColor = styleEqual(
+          c("采购", "税费", "杂费", "工资", "债务", "社保", "其他"), 
+          c("#FFDDC1", "#FFD700", "#87CEEB", "#98FB98", "#FF6347", "#DDA0DD", "#D3D3D3")
+        ),
+        color = styleEqual(
+          c("采购", "税费", "杂费", "工资", "债务", "社保", "其他"), 
+          c("black", "black", "black", "black", "black", "black", "black")
+        )    
+      )
+  }
+  
   return(table)
 }
 
@@ -515,30 +531,20 @@ refreshTransactionTable <- function(account_type, cache_env, transaction_table_h
     
     # 更新哈希缓存
     transaction_table_hash[[hash_key]] <- current_hash
-    
-    # 渲染表格
-    table_result <- render_table_with_images(
-      data = data,
-      column_mapping = transaction_common_columns,
-      image_column = "TransactionImagePath",  # 图片列名
-      options = modifyList(table_default_options, list(scrollY = "600px", searching = TRUE))
-    )
-    
+
     # 更新输出
     output[[table_map[[account_type]]]] <- renderDT({
-      datatable <- table_result$datatable
+      # 渲染表格
+      table_result <- render_table_with_images(
+        data = data,
+        column_mapping = transaction_common_columns,
+        image_column = "TransactionImagePath",  # 图片列名
+        options = modifyList(table_default_options, list(scrollY = "600px", searching = TRUE))
+      )
       
-      # 添加颜色样式
-      datatable %>%
-        formatStyle(
-          "TransactionType",
-          backgroundColor = styleEqual(
-            c("采购", "税费", "杂费", "工资", "债务", "社保", "其他"), 
-            c("#FFDDC1", "#FFD700", "#87CEEB", "#98FB98", "#FF6347", "#DDA0DD", "#D3D3D3")  # 颜色代码
-          ),
-          color = "black"
-        )    
-      })
+      table <- apply_dynamic_styles(table_result$datatable, table_result$column_names)
+      table
+    }, server = TRUE)
   } else {
     showNotification("无效的账户类型！", type = "error")
   }
