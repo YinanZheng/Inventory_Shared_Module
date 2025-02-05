@@ -612,6 +612,7 @@ fetchInputFromTable <- function(account_type, selected_row, cache_env, con, sess
     
     # 更新 transaction_category 下拉菜单
     if (!is.null(selected_data$TransactionType) && selected_data$TransactionType %in% c("采购", "税费", "杂费", "工资", "债务", "社保", "其他")) {
+      showNotification("Transaction Type updated!")
       updateSelectInput(session, "transaction_category", selected = selected_data$TransactionType)
     } else {
       updateSelectInput(session, "transaction_category", selected = "其他")  # 如果数据为空，默认设置为 "其他"
