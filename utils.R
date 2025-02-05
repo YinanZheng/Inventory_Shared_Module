@@ -881,10 +881,15 @@ get_shelf_items <- function(data, sku, valid_status = c("美国入库", "国内�
     stop("请指定有效的状态优先级！")
   }
   
-  # 从数据中获取符合条件的物品并按优先级排序
+  # 过滤符合条件的物品，并自动排除 "国内出库" 且未进入国际物流的物品
   result <- data %>%
-    filter(SKU == sku, Status %in% valid_status, Defect != defect_filter) %>%
-    select(SKU, UniqueID, ItemName, Status, Defect, ProductCost, ItemImagePath) %>%
+    filter(
+      SKU == sku, 
+      Status %in% valid_status, 
+      Defect != defect_filter,
+      !(Status == "国内出库" & (is.na(IntlTracking) | IntlTracking == ""))
+    ) %>%
+    select(SKU, UniqueID, ItemName, Status, Defect, ProductCost, ItemImagePath, IntlTracking) %>%
     mutate(StatusPriority = case_when(
       Status %in% names(status_priority) ~ status_priority[Status],
       TRUE ~ max(unlist(status_priority)) + 1  # 默认最低优先级
