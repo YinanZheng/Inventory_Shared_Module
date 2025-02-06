@@ -104,7 +104,7 @@ CREATE TABLE `item_status_history` (
 CREATE TABLE `transactions` (
   `TransactionID` varchar(12) COLLATE utf8mb4_unicode_ci NOT NULL,
   `AccountType` enum('工资卡','美元卡','买货卡','一般户卡') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `TransactionType` enum('采购','税费','杂费','工资','债务','社保','其他') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '其他',
+  `TransactionType` enum('采购','税费','杂费','工资','债务','社保','其他','图解') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '其他',
   `Amount` decimal(10,2) NOT NULL,
   `Balance` decimal(10,2) DEFAULT '0.00',
   `Remarks` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
@@ -112,7 +112,7 @@ CREATE TABLE `transactions` (
   `TransactionTime` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`TransactionID`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
 
 CREATE TABLE `requests` (
   `RequestID` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,

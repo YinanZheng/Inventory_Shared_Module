@@ -437,12 +437,12 @@ apply_dynamic_styles <- function(table, column_names) {
       formatStyle(
         "转账类别",
         backgroundColor = styleEqual(
-          c("采购", "税费", "杂费", "工资", "债务", "社保", "其他"), 
-          c("#FFDDC1", "#FFD700", "#87CEEB", "#98FB98", "#FF6347", "#DDA0DD", "#D3D3D3")
+          c("采购", "税费", "杂费", "工资", "债务", "社保", "图解", "其他"), 
+          c("#FFDDC1", "#FFD700", "#87CEEB", "#98FB98", "#FF6347", "#DDA0DD", "#f1f797", "#D3D3D3")
         ),
         color = styleEqual(
-          c("采购", "税费", "杂费", "工资", "债务", "社保", "其他"), 
-          c("black", "black", "black", "black", "black", "black", "black")
+          c("采购", "税费", "杂费", "工资", "债务", "社保", "图解", "其他"), 
+          c("black", "black", "black", "black", "black", "black", "black", "black")
         )    
       )
   }
