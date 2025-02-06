@@ -617,8 +617,7 @@ fetchInputFromTable <- function(account_type, selected_row, cache_env, con, sess
     
     # 提取选中行的数据
     selected_data <- data[selected_row, ]
-    showNotification(selected_data$TransactionType)
-    
+
     # 更新输入框内容
     updateNumericInput(session, "amount", value = ifelse(!is.na(selected_data$AmountIn), 
                                                          as.numeric(selected_data$AmountIn), 
