@@ -1175,7 +1175,7 @@ update_order_id <- function(con, unique_ids, order_id) {
       dbExecute(con, query)
       
       # 成功提示
-      showNotification("订单号已成功批量更新！", type = "message")
+      showNotification("订单号已成功更新！", type = "message")
     }
   }, error = function(e) {
     # 错误提示
@@ -1419,7 +1419,7 @@ handleOperation <- function(
   
   # 如果仍无符合条件的物品
   if (nrow(sku_items) == 0) {
-    showNotification(paste0("无可", operation_name, "的物品，所有该商品已完成 ", operation_name, "！"), type = "message")
+    showNotification(paste0("无可", operation_name, "的物品！"), type = "message")
     return()
   }
   
