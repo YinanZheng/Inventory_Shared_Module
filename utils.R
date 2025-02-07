@@ -1975,10 +1975,6 @@ renderOrderItems <- function(output, output_name, order_items, con, deletable = 
 
 # 动态拼接图片函数（接近正方形布局）
 generate_montage <- function(image_paths, output_path, geometry = "+5+5") {
-  if (length(image_paths) == 0) {
-    showNotification("无图片可供拼贴！", type = "error")
-  }
-  
   # 计算行列数，保持接近正方形
   n_images <- length(image_paths)
   n_cols <- ceiling(sqrt(n_images))
