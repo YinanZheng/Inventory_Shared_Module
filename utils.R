@@ -125,10 +125,10 @@ process_image_upload <- function(sku, file_data = NULL, pasted_data = NULL, inve
   if (is.null(file_data) && is.null(pasted_data)) {
     # 没有上传图片，返回库存路径或 NULL
     if (!is.null(inventory_path)) {
-      showNotification("使用库存中现有图片路径。", type = "message")
+      showNotification("使用库存中现有图片路径", type = "message")
       return(inventory_path)
     } else {
-      showNotification("未上传图片，且库存中没有对应图片路径。", type = "warning")
+      showNotification("未上传图片", type = "warning")
       return(NA)
     }
   }
@@ -1607,7 +1607,8 @@ register_order <- function(order_id, customer_name, customer_netname, platform, 
     
     # 获取订单内关联物品的图片路径
     order_items <- unique_items_data() %>% filter(OrderID == order_id)
-    order_image_paths <- if (nrow(order_items) > 0) {
+    
+    order_items_image_paths <- if (nrow(order_items) > 0) {
       order_items$ItemImagePath[!is.na(order_items$ItemImagePath)]
     } else {
       character(0)  # 如果为空，返回空字符向量
@@ -1624,16 +1625,15 @@ register_order <- function(order_id, customer_name, customer_netname, platform, 
     image_path <- process_image_upload(
       sku = order_id,
       file_data = image_data$uploaded_file(),
-      pasted_data = image_data$pasted_file(),
-      inventory_path = order_image_path
+      pasted_data = image_data$pasted_file()
     )
     
     # 合并订单关联物品和发货箱的图片路径
-    combined_image_paths <- unique(c(order_image_paths, box_image_paths))
+    combined_image_paths <- unique(c(order_items_image_paths, box_image_paths))
     
     # 决定订单图片路径
     if (!is.na(image_path)) {
-      # 如果用户上传或粘贴了图片，直接使用用户的图片路径
+      # 如果用户上传或粘贴了图片，直接使用用户上传的图片路径（最高优先级）
       order_image_path <- image_path
     } else {
       # 如果没有用户上传或粘贴的图片，使用库存中的图片路径和发货箱的图片路径生成拼贴图
