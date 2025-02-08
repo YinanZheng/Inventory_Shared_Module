@@ -1547,7 +1547,7 @@ update_order_montage <- function(order_id, con, unique_items_data) {
     dbExecute(con, "UPDATE orders SET OrderImagePath = ? WHERE OrderID = ?", 
               params = list(order_image_path, order_id))
     
-    showNotification(sprintf("订单 #%s 拼图生成成功！", order_id), type = "success")
+    showNotification(sprintf("订单 #%s 拼图生成成功！", order_id), type = "message")
     return(TRUE)  # 成功时返回 TRUE，调用者可决定是否刷新数据
   } else {
     showNotification(sprintf("订单 #%s 没有可用的商品图片！", order_id), type = "warning")
