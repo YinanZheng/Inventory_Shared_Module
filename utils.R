@@ -1527,6 +1527,33 @@ add_defective_note <- function(con, unique_id, note_content, status_label = "瑕
   }
 }
 
+# 更新订单拼图
+update_order_montage <- function(order_id, con, unique_items_data) {
+  req(order_id)  # 确保 order_id 不为空
+  
+  # 获取订单内关联物品的图片路径
+  order_items <- unique_items_data %>% filter(OrderID == order_id)
+  order_items_image_paths <- if (nrow(order_items) > 0) {
+    order_items$ItemImagePath[!is.na(order_items$ItemImagePath)]
+  } else {
+    character(0)  # 如果为空，返回空字符向量
+  }
+  
+  if (length(order_items_image_paths) > 0) {
+    order_image_path <- generate_montage(order_items_image_paths, 
+                                         paste0("/var/www/images/", order_id, "_montage_", format(Sys.time(), "%Y%m%d%H%M%S"), ".jpg"))
+    
+    # 更新数据库中的 `OrderImagePath`
+    dbExecute(con, "UPDATE orders SET OrderImagePath = ? WHERE OrderID = ?", 
+              params = list(order_image_path, order_id))
+    
+    showNotification(sprintf("订单 #%s 拼图生成成功！", order_id), type = "success")
+    return(TRUE)  # 成功时返回 TRUE，调用者可决定是否刷新数据
+  } else {
+    showNotification(sprintf("订单 #%s 没有可用的商品图片！", order_id), type = "warning")
+    return(FALSE)  # 失败时返回 FALSE
+  }
+}
 
 # 订单注册与更新
 register_order <- function(order_id, customer_name, customer_netname, platform, order_notes, tracking_number, 
