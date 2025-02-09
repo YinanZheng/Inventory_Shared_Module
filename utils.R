@@ -2206,8 +2206,8 @@ render_request_board <- function(requests, output_id, output) {
               actionButton(paste0("mark_urgent_", request_id), "加急", class = "btn-danger", style = "width: 30%; height: 45px;"),
               
               if (output_id == "purchase_request_board") actionButton(paste0("provider_arranged_", request_id), "已安排", class = "btn-primary", style = "width: 30%; height: 45px;"),
-              if (output_id == "provider_arranged_board") actionButton(paste0("done_paid_", request_id), "已付款", class = "btn-primary", style = "width: 30%; height: 45px;"),
-              if (output_id %in% c("done_paid_board", "outbound_request_board")) actionButton(paste0("complete_task_", request_id), "完成", class = "btn-primary", style = "width: 30%; height: 45px;"),
+              if (output_id == "provider_arranged_board") actionButton(paste0("done_paid_", request_id), "制作完毕", class = "btn-primary", style = "width: 30%; height: 45px;"),
+              if (output_id %in% c("done_paid_board", "outbound_request_board")) actionButton(paste0("complete_task_", request_id), "请求完成", class = "btn-primary", style = "width: 30%; height: 45px;"),
               
               actionButton(paste0("delete_request_", request_id), "删除", class = "btn-warning", style = "width: 30%; height: 45px;")
             )
