@@ -181,9 +181,9 @@ extract_latest_status <- function(eventSummaries) {
   
   # 匹配状态
   status <- dplyr::case_when(
-    grepl("Pre-Shipment|USPS Awaiting Item|Shipping Label Created|label has been prepared|expect your package for mailing", latest_event) ~ "装箱",
-    grepl("USPS picked up|USPS in possession|Departed Post Office", latest_event) ~ "发出",
-    grepl("In Transit|Departed|Arrived at|Your item arrived at|item departed|is moving|on its way|out for delivery|in transit to", latest_event) ~ "在途",
+    grepl("Pre-Shipment|Awaiting Item|Shipping Label Created|label has been prepared|expect your package for mailing", latest_event) ~ "装箱",
+    grepl("picked up|in possession|Departed Post Office", latest_event) ~ "发出",
+    grepl("In Transit|Departed|Arrived at|Out for Delivery|item arrived at|item departed|is moving|on its way|out for delivery|in transit to|anticipate delivery", latest_event) ~ "在途",
     grepl("item was delivered", latest_event) ~ "送达"
   )
   
