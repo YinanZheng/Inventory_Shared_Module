@@ -100,7 +100,7 @@ base64_decode_image <- function(base64_string, output_path) {
 render_image_preview <- function(img_src, img_info, ns) {
   renderUI({
     div(
-      tags$img(src = img_src, height = "200px",
+      tags$img(src = img_src, width = "200px",
                style = "border: 1px solid #ddd; border-radius: 8px; margin-bottom: 10px;"),
       tags$p(
         style = "color: #007BFF; font-size: 14px;",
