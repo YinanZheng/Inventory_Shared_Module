@@ -101,7 +101,7 @@ render_image_preview <- function(img_src, img_info, ns) {
   renderUI({
     div(
       tags$img(src = img_src, width = "200px",
-               style = "border: 1px solid #ddd; border-radius: 8px; margin-bottom: 10px;"),
+               style = "border: 1px solid #ddd; border-radius: 8px; padding: 5px; margin-bottom: 10px;"),
       tags$p(
         style = "color: #007BFF; font-size: 14px;",
         paste0("分辨率: ", img_info$width, "x", img_info$height,
