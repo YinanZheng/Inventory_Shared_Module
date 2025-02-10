@@ -2409,6 +2409,18 @@ calculate_totals <- function(data) {
   if (!is.null(a)) a else b
 }
 
+# 生成格式化的便签留言
+format_remark <- function(raw_remark, system_type) {
+  if (is.null(raw_remark) || raw_remark == "") {
+    return(NA_character_)
+  }
+  
+  remark_prefix <- if (system_type == "cn") "[京]" else "[圳]"  # 根据系统类型添加前缀
+  formatted_remark <- paste0(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), ": ", remark_prefix, " ", raw_remark)
+  
+  return(formatted_remark)
+}
+
 # 加载时清除无效和冗余的状态流转记录
 clear_invalid_item_status_history <- function(con) {
   tryCatch({
