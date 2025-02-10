@@ -2332,9 +2332,7 @@ bind_buttons <- function(request_id, requests, input, output, session, con) {
     remark <- input[[paste0("remark_input_", request_id)]]
     req(remark != "")
     
-    # 根据系统类型添加前缀
-    remark_prefix <- if (system_type == "cn") "[京]" else "[圳]"
-    new_remark <- paste0(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), ": ", remark_prefix, " ", remark)
+    new_remark <- format_remark(remark, system_type)
     
     # 更新数据库中的 Remarks 字段
     current_remarks <- requests %>% filter(RequestID == request_id) %>% pull(Remarks)
@@ -2351,6 +2349,18 @@ bind_buttons <- function(request_id, requests, input, output, session, con) {
     # 清空输入框
     updateTextInput(session, paste0("remark_input_", request_id), value = "")
   }, ignoreInit = TRUE)
+}
+
+# 生成格式化的便签留言
+format_remark <- function(raw_remark, system_type) {
+  if (is.null(raw_remark) || raw_remark == "") {
+    return(NA_character_)
+  }
+  
+  remark_prefix <- if (system_type == "cn") "[京]" else "[圳]"  # 根据系统类型添加前缀
+  formatted_remark <- paste0(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), ": ", remark_prefix, " ", raw_remark)
+  
+  return(formatted_remark)
 }
 
 # 库存数计算
@@ -2407,18 +2417,6 @@ calculate_totals <- function(data) {
 # 自定义函数
 `%||%` <- function(a, b) {
   if (!is.null(a)) a else b
-}
-
-# 生成格式化的便签留言
-format_remark <- function(raw_remark, system_type) {
-  if (is.null(raw_remark) || raw_remark == "") {
-    return(NA_character_)
-  }
-  
-  remark_prefix <- if (system_type == "cn") "[京]" else "[圳]"  # 根据系统类型添加前缀
-  formatted_remark <- paste0(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), ": ", remark_prefix, " ", raw_remark)
-  
-  return(formatted_remark)
 }
 
 # 加载时清除无效和冗余的状态流转记录
