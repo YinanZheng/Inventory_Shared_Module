@@ -11,7 +11,7 @@ imageModuleUI <- function(id, label = "商品图片上传", label_color = "#007B
       # 粘贴区域
       tags$div(
         id = ns("paste_area"), # 使用模块命名空间
-        style = "border: 2px dashed #ccc; padding: 20px; text-align: center; margin-bottom: 15px; position: relative;",
+        style = "border: 2px dashed #ccc; padding: 5px; text-align: center; margin-bottom: 10px; position: relative;",
         uiOutput(ns("paste_prompt")),  # 动态渲染提示文本
         uiOutput(ns("pasted_image_preview")) # 图片预览区域
       ),
