@@ -1,225 +1,116 @@
-      
-      if (is.null(scanned_sku) || scanned_sku == "") {
-        showNotification("请输入有效的 SKU！", type = "error")
-        return()
-      }
-      
-      # 从 unique_items_data 获取货架中符合条件的物品
-      all_shelf_items <- get_shelf_items(data = unique_items_data(), sku = scanned_sku)
-      
-      # 如果货架中没有符合条件的物品，提示错误
-      if (is.null(all_shelf_items)) {
-        showNotification("货架上未找到对应 SKU 的物品！", type = "error")
-        updateTextInput(session, "sku_to_shelf", value = "")  # 清空输入框
-        return()
-      }
-      
-      # 从箱子中获取当前 SKU 的已选数量
-      box_data <- box_items()
-
-      # 更新货架上的物品
-      updated_shelf <- all_shelf_items[!all_shelf_items$UniqueID %in% box_data$UniqueID, ]
-      shelf_items(updated_shelf)
-      
-      # 通知用户
-      showNotification(paste("物品已上货架！SKU:", scanned_sku), type = "message")
-      
-    }, error = function(e) {
-      # 捕获错误并通知用户
-      showNotification(paste("处理 SKU 时发生错误：", e$message), type = "error")
-    })
-    
-    # 清空输入框
-    updateTextInput(session, "sku_to_shelf", value = "")
-    
-  })
-  
-  # 扫码入箱功能
-  observeEvent(input$sku_to_box, {
-    req(input$sku_to_box)  # 确保输入框不为空
-    
-    tryCatch({
-      # 获取输入的 SKU
-      scanned_sku <- trimws(input$sku_to_box)
-      
-      if (is.null(scanned_sku) || scanned_sku == "") {
-        showNotification("请输入有效的 SKU！", type = "error")
-        return()
-      }
-      
-      # 从 unique_items_data 获取货架中符合条件的物品
-      all_shelf_items <- get_shelf_items(data = unique_items_data(), sku = scanned_sku)
-      
-      if (is.null(all_shelf_items)) {
-        showNotification("货架上未找到对应 SKU 的物品！", type = "error")
-        updateTextInput(session, "sku_to_box", value = "")  # 清空输入框
-        return()
-      }
-      
-      # 检查是否为 "美国入库" 状态且仅剩一件
-      us_stock_count <- sum(all_shelf_items$Status == "美国入库")
-      
-      if (any(all_shelf_items$Status == "美国入库") && us_stock_count <= 1) {
-        # 弹出模态框，提醒用户核实后再操作
-        showModal(modalDialog(
-          title = "注意",
-          p("此商品在美国库存仅剩一件，请沟通核实后再进行调货"),
-          footer = tagList(
-            actionButton("verify_and_proceed", "已核实, 继续调货", class = "btn-primary"),
-            modalButton("取消")
-          ),
-          easyClose = FALSE
-        ))
-        
-        # 监听 "已核实" 按钮事件，确认操作
-        observeEvent(input$verify_and_proceed, {
-          removeModal()  # 关闭模态框
-          process_box_addition(scanned_sku, all_shelf_items)  # 继续处理移入箱子操作
-        })
-        
-        # 清空输入框
-        updateTextInput(session, "sku_to_box", value = "")  # 清空输入框
-        return()
-      }
-      
-      # 如果不需要弹窗，直接处理入箱
-      process_box_addition(scanned_sku, all_shelf_items)
-      
-    }, error = function(e) {
-      # 捕获错误并通知用户
-      showNotification(paste("处理 SKU 时发生错误：", e$message), type = "error")
-    })
-    
-    # 清空输入框
-    updateTextInput(session, "sku_to_box", value = "")
-  })
-  
-  # 定义移入箱子的逻辑
-  process_box_addition <- function(scanned_sku, all_shelf_items) {
-    # 从箱子中获取当前 SKU 的已选数量
-    box_data <- box_items()
-    box_sku_count <- sum(box_data$SKU == scanned_sku)
-    
-    # 如果箱子中物品数量 >= 货架中物品总量，则阻止操作
-    if (box_sku_count >= nrow(all_shelf_items)) {
-      showNotification("该 SKU 的所有物品已移入箱子，无法继续添加！", type = "error")
-      return()
-    }
-    
-    # 获取优先级最高的物品
-    selected_item <- all_shelf_items[box_sku_count + 1, ]
-    
-    # 更新箱子内容
-    current_box <- box_items()
-    box_items(bind_rows(selected_item, current_box))
-    
-    # 更新货架上的物品
-    updated_shelf <- all_shelf_items[!all_shelf_items$UniqueID %in% box_items()$UniqueID, ]
-    shelf_items(updated_shelf)
-    
-    # 通知用户
-    showNotification(paste("物品已移入箱子！SKU:", scanned_sku), type = "message")
-  }
-  
-  # 确认售出
-  observeEvent(input$confirm_order_btn, {
-    req(input$order_id)
-    
-    tryCatch({
-      
-      if (nrow(box_items()) == 0) {
-        showNotification("箱子内容不能为空！", type = "error")
-        return()
-      }
-      
-      if (is.null(input$platform) || input$platform == "") {
-        showNotification("电商平台不能为空，请选择一个平台！", type = "error")
-        return()
-      }
-      
-      # 去除空格和#号
-      sanitized_order_id <- gsub("#", "", trimws(input$order_id))
-      
-      # 确保订单已登记
-      order_registered <- register_order(
-        order_id = sanitized_order_id,
-        customer_name = input$customer_name,
-        customer_netname = input$customer_netname,
-        platform = input$platform,
-        order_notes = input$order_notes,
-        tracking_number = input$tracking_number,
-        image_data = image_sold,
-        con = con,
-        orders = orders,
-        box_items = box_items,
-        unique_items_data = unique_items_data,
-        is_transfer_order = input$is_transfer_order,
-        is_preorder = input$is_preorder,
-        preorder_supplier = input$preorder_supplier
-      )
-      
-      # 如果订单登记失败，直接退出
-      if (!order_registered) {
-        return()
-      }
-      
-      orders_refresh_trigger(!orders_refresh_trigger())
-      
-      # 遍历箱子内物品，减库存并更新物品状态
-      lapply(1:nrow(box_items()), function(i) {
-        item <- box_items()[i, ]
-        sku <- item$SKU
-        
-        # 调整库存：减少数量
-        adjust_inventory_quantity(con, sku, adjustment = -1)  # 减少 1 的库存数量
-        
-        # 根据当前状态决定新的状态
-        current_status <- item$Status
-        new_status <- ifelse(
-          current_status %in% c("美国入库", "国内出库"), "美国调货",
-          ifelse(current_status == "国内入库", "国内售出", NA)
-        )
-        
-        if (is.na(new_status)) {
-          showNotification(paste("无法确定 SKU", sku, "的目标状态，操作已终止！"), type = "error")
+                          item$ItemName,
+                          purchase_qty,
+                          ifelse(remark == "", NA_character_, new_remark)
+                        )
+              )
+              showNotification(paste0("超出国内库存部分已创建采购请求，SKU：", sku, "，数量：", purchase_qty), type = "warning")
+              # 动态更新按钮文本和样式
+              updateActionButton(session, inputId = button_id, label = HTML("<i class='fa fa-check'></i> 出库+采购请求已发送"))
+              runjs(sprintf("$('#%s').removeClass('btn-primary').addClass('btn-success');", button_id))
+              shinyjs::disable(button_id)
+            }
+            
+            # 绑定按钮
+            bind_buttons(request_id, requests_data(), input, output, session, con)
+          }, error = function(e) {
+            # 提示错误消息
+            showNotification(paste("发出出库请求失败：", e$message), type = "error")
+          })
+        } else if (grepl("purchase", button_id)) {
+          # 采购请求处理逻辑
+          sku <- sub("create_request_purchase_", "", button_id)  # 提取 SKU
+          items <- zero_stock_items()  # 从 reactiveVal 获取库存为零的物品
+          item <- items[[which(sapply(items, function(x) x$SKU == sku))]]  # 找到匹配的物品
+          
+          # 获取请求数量
+          qty <- input[[paste0("purchase_qty_", sku)]]
+          
+          # 获取留言
+          remark <- input[[paste0("purchase_remark_input_", sku)]]
+          remark_prefix <- if (system_type == "cn") "[京]" else "[圳]"
+          new_remark <- paste0(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), ": ", remark_prefix, " ", remark)
+          
+          request_id <- uuid::UUIDgenerate()
+          
+          tryCatch({
+            # 插入采购请求到数据库
+            dbExecute(con,
+                      "INSERT INTO requests (RequestID, SKU, Maker, ItemImagePath, ItemDescription, Quantity, RequestStatus, RequestType, CreatedAt, Remarks)
+                     VALUES (?, ?, ?, ?, ?, ?, '待处理', '采购', NOW(), ?)",
+                      params = list(
+                        request_id,
+                        sku,
+                        item$Maker,
+                        item$ItemImagePath,
+                        item$ItemName,
+                        qty,
+                        ifelse(remark == "", NA_character_, new_remark)
+                      ))
+            
+            # 绑定按钮
+            bind_buttons(request_id, requests_data(), input, output, session, con)
+            
+            # 动态更新按钮文本和样式
+            updateActionButton(session, inputId = button_id, label = HTML("<i class='fa fa-check'></i> 采购请求已发送"))
+            runjs(sprintf("$('#%s').removeClass('btn-primary').addClass('btn-success');", button_id))
+            shinyjs::disable(button_id)
+            
+            # 提示成功消息
+            showNotification(paste0("已发出采购请求，SKU：", sku, "，数量：", qty), type = "message")
+          }, error = function(e) {
+            # 提示错误消息
+            showNotification(paste("发出采购请求失败：", e$message), type = "error")
+          })
         }
-        
-        # 更新 unique_items 表中的状态
-        update_status(
-          con = con,
-          unique_id = item$UniqueID,
-          new_status = new_status,
-          shipping_method = if (new_status == "国内售出") input$sold_shipping_method else NULL,
-          refresh_trigger = NULL
-        )
-        
-        # 更新订单号
-        update_order_id(
-          con = con,
-          unique_id = item$UniqueID,
-          order_id = sanitized_order_id
-        )
-      }) # end of lapply
-      
-      # 更新数据并触发 UI 刷新
-      unique_items_data_refresh_trigger(!unique_items_data_refresh_trigger())
-      
-      showNotification("订单已完成售出并更新状态！", type = "message")
-      
-      # 清空箱子
-      box_items(create_empty_shelf_box())
-      
-      # 重置所有输入框
-      reset_order_form(session, image_sold)
-      
-    }, error = function(e) {
-      showNotification(paste("操作失败：", e$message), type = "error")
+      }, ignoreInit = TRUE)  # 忽略初始绑定时的触发
     })
+    
+    # 更新已注册的按钮 ID
+    observed_request_buttons$registered <- union(observed_request_buttons$registered, new_buttons)
   })
   
-  ############################ 
-  #####   订单管理子页   ##### 
-  ############################ 
+  # 监听 "完成请求" 按钮事件
+  observeEvent(input$complete_requests, {
+    zero_stock_items(list())        # 清空补货物品列表
+    outbound_stock_items(list())    # 清空出库物品列表
+    removeModal()                   # 关闭模态框
+  })
+  
+  
+  # 订单物品删除逻辑 （美国售出only）
+  observeEvent(input$delete_card, {
+    req(input$delete_card, new_order_items())  # 确保输入和物品列表存在
+    
+    # 当前物品列表
+    current_items <- new_order_items()
+    
+    # 移除对应的物品
+    updated_items <- current_items %>% filter(UniqueID != input$delete_card)
+    new_order_items(updated_items)  # 更新物品列表
+    
+    # 提示删除成功
+    showNotification("物品已删除。", type = "message")
+  })
+  
+  # 清空逻辑
+  observeEvent(input$clear_us_shipping_bill_btn, {
+    updateTextInput(session, "us_shipping_bill_number", value = "")
+    updateTextInput(session, "us_shipping_sku_input", value = "")
+    updateSelectInput(session, "us_shipping_platform", selected = "TikTok")
+    new_order_items(NULL)  # 清空物品列表
+  })
+  
+  
+  ##################################################################################################
+  ##################################################################################################
+  ##################################################################################################
+  
+  
+  ################################################################
+  ##                                                            ##
+  ## 订单管理分页                                               ##
+  ##                                                            ##
+  ################################################################
   
   # 订单关联物品容器
   associated_items <- reactiveVal()
@@ -236,72 +127,37 @@
     order_id <- selected_order$OrderID
     customer_name <- selected_order$CustomerName
     order_status <- selected_order$OrderStatus
-    us_tracking_number <- selected_order$UsTrackingNumber
     
-    label_pdf_file_path(file.path("/var/uploads/shiplabels", paste0(us_tracking_number, ".pdf")))
- 
+    label_pdf_file_path(file.path("/var/uploads/shiplabels", paste0(selected_order$UsTrackingNumber, ".pdf")))
+    
     # 填充左侧订单信息栏
     updateTextInput(session, "order_id", value = order_id)
     
     # 动态更新标题
     output$associated_items_title <- renderUI({
-      # 获取相关物品和状态
-      items <- associated_items() 
-      
-      # 如果 items 为空，显示默认标题
-      if (is.null(items) || nrow(items) == 0) {
-        return(div(
-          style = "display: flex; align-items: center; justify-content: space-between;",
-          tags$h4(
-            sprintf("#%s - %s 的订单物品（无相关物品）", order_id, customer_name),
-            style = "color: #007BFF; font-weight: bold; margin: 0;"
-          ),
-          if(selected_order$LabelStatus != "无") {
-            downloadButton("download_pdf_manage", label = "下载运单", class = "btn btn-primary", 
-                           style = "height: 34px; margin-left: 10px; font-size: 14px; padding: 5px 10px;")
-          }
-        ))
-      }
-      
-      # 检查是否所有物品状态为“美国发货”
-      all_us_shipping <- all(items$Status == "美国发货")
-      
-      # 如果所有物品都是美国发货，找到最晚的发货时间
-      latest_shipping_time <- if (all_us_shipping) {
-        max(items$UsShippingTime, na.rm = TRUE)  # 获取最晚的发货时间
-      } else {
-        NULL
-      }
-      
       div(
         style = "display: flex; align-items: center; justify-content: space-between;",
         
         # 左侧标题
         tags$h4(
-          sprintf("#%s - %s 的订单物品%s",
-                  order_id,
-                  customer_name,
-                  if (!is.null(latest_shipping_time)) {
-                    sprintf("（发货日期：%s）", latest_shipping_time)
-                  } else {
-                    ""
-                  }),
+          sprintf("#%s - %s 的订单物品", order_id, customer_name),
           style = "color: #007BFF; font-weight: bold; margin: 0;"
         ),
         
         # 右侧按钮（仅在订单状态为“预定”时显示）
-        if (order_status == "预定") {
-          actionButton(
-            inputId = "complete_preorder",
-            label = "已完成预定",
-            class = "btn-success",
-            style = "margin-left: auto; font-size: 14px; padding: 5px 10px;"
+        if (order_status == "调货") {
+          tagList(
+            actionButton(
+              inputId = "complete_transfer",
+              label = "已完成调货",
+              class = "btn-success",
+              style = "margin-left: auto; font-size: 14px; padding: 5px 10px;"
+            ),
+            downloadButton("download_shipping_label_pdf_manage", label = "下载运单", class = "btn btn-primary", 
+                           style = "height: 34px; margin-left: 10px; font-size: 14px; padding: 5px 10px;")
           )
-        },
-        
-        if(selected_order$LabelStatus != "无") {
-          downloadButton("download_pdf_manage", label = "下载运单", class = "btn btn-primary", 
-                         style = "height: 34px; margin-left: 10px; font-size: 14px; padding: 5px 10px;")
+        } else {
+          NULL
         }
       )
     })
@@ -310,17 +166,7 @@
     associated_items <- associated_items(unique_items_data() %>% filter(OrderID == order_id))
   })
   
-  # 定义运单下载处理器
-  output$download_pdf_manage <- downloadHandler(
-    filename = function() {
-      basename(label_pdf_file_path())
-    },
-    content = function(file) {
-      file.copy(label_pdf_file_path(), file, overwrite = TRUE)
-    }
-  )
-  
-  observeEvent(input$complete_preorder, {
+  observeEvent(input$complete_transfer, {
     req(selected_order_row())
     
     # 获取选中订单
@@ -328,98 +174,25 @@
     selected_order <- filtered_orders()[selected_row, ]
     order_id <- selected_order$OrderID
     existing_notes <- selected_order$OrderNotes %||% ""  # 若为空，则默认空字符串
-    
-    # 检查 associated_items 是否为空
-    associated_items_data <- associated_items()
-    if (is.null(associated_items_data) || nrow(associated_items_data) == 0) {
-      showNotification("无法完成预定：订单中未找到关联物品！", type = "error")
-      return()  # 提前退出，避免后续逻辑执行
-    }
-    
+
     # 在 R 中拼接备注内容
-    new_notes <- paste(existing_notes, sprintf("【预定完成 %s】", format(Sys.Date(), "%Y-%m-%d")))
+    new_notes <- paste(existing_notes, sprintf("【调货完成 %s】", format(Sys.Date(), "%Y-%m-%d")))
     
-    tryCatch({
-      # 使用拼接后的备注信息进行 SQL 更新
-      dbExecute(con, "
-      UPDATE orders
-      SET OrderStatus = '备货',
-          OrderNotes = ?
-      WHERE OrderID = ?
-    ", params = list(new_notes, order_id))
-      
-      # 重新加载最新的 orders 数据
-      orders_refresh_trigger(!orders_refresh_trigger())
-      
-      # 通知用户操作成功
-      showNotification(sprintf("订单 #%s 已更新为备货状态！", order_id), type = "message")
-      
-    }, error = function(e) {
-      # 捕获错误并通知用户
-      showNotification(sprintf("更新订单状态时发生错误：%s", e$message), type = "error")
-    })
+    update_order_status(order_id = order_id, 
+                        new_status = "备货", 
+                        updated_notes = new_notes, 
+                        refresh_trigger = orders_refresh_trigger,
+                        con = con)
   })
   
   # 渲染物品信息卡片  
   observe({
     req(associated_items())
     if (nrow(associated_items()) == 0) {
-      renderOrderItems(output, "order_items_cards", data.frame())  # 清空物品卡片
+      renderOrderItems(output, "order_items_cards", data.frame(), con)  # 清空物品卡片
       return()
     }
-    renderOrderItems(output, "order_items_cards", associated_items(), deletable = TRUE)
-  })
-
-  # 订单物品删除逻辑
-  observeEvent(input$delete_card, {
-    req(input$delete_card, associated_items())  # 确保输入和物品列表存在
-    
-    # 当前物品列表
-    current_items <- associated_items()
-
-    # 移除对应的物品
-    deleted_item <- current_items %>% filter(UniqueID == input$delete_card)
-    updated_items <- current_items %>% filter(UniqueID != input$delete_card)
-    associated_items(updated_items)  # 更新物品列表
-
-    # 查询物品原始状态
-    original_state <- dbGetQuery(con, paste0(
-      "SELECT * FROM item_status_history WHERE UniqueID = '", deleted_item$UniqueID, "' ORDER BY change_time DESC LIMIT 1"
-    ))
-    
-    if (nrow(original_state) > 0) {
-      # 恢复物品状态到原始状态
-      update_status(
-        con = con,
-        unique_id = deleted_item$UniqueID,
-        new_status = original_state$previous_status,
-        clear_status_timestamp = deleted_item$Status
-      )
-    } else {
-      showModal(modalDialog(
-        title = "错误",
-        paste0("未找到物品 (SKU: ", deleted_item$SKU, ") 之前的库存状态记录，请联系管理员手动更改物品库存状态"),
-        footer = modalButton("关闭"),
-        easyClose = TRUE
-      ))    
-    }
-    
-    # 恢复库存数量
-    adjust_inventory_quantity(con, deleted_item$SKU, adjustment = 1)  # 增加库存数量
-    
-    # 清空物品的 OrderID
-    update_order_id(
-      con = con,
-      unique_id = deleted_item$UniqueID,
-      order_id = NULL  # 清空订单号
-    )
-    
-    # 提示删除成功
-    showNotification("物品已删除, 库存已归还。", type = "message")
-    
-    # 更新数据并触发 UI 刷新
-    unique_items_data_refresh_trigger(!unique_items_data_refresh_trigger())
-    orders_refresh_trigger(!orders_refresh_trigger())
+    renderOrderItems(output, "order_items_cards", associated_items(), con, deletable = FALSE)
   })
   
   # 清空筛选条件逻辑
@@ -529,9 +302,6 @@
       unique_items_data_refresh_trigger(!unique_items_data_refresh_trigger())
       orders_refresh_trigger(!orders_refresh_trigger())
       
-      # 重置输入
-      reset_order_form(session, image_sold)
-      
       # 清空关联物品表
       output$associated_items_table <- renderDT({ NULL })
     }, error = function(e) {
@@ -636,11 +406,59 @@
     })
   })
   
+  # 定义运单下载处理器
+  output$download_shipping_label_pdf_manage <- downloadHandler(
+    filename = function() {
+      basename(label_pdf_file_path())
+    },
+    content = function(file) {
+      file.copy(label_pdf_file_path(), file, overwrite = TRUE)
+      tracking_number <- tools::file_path_sans_ext(basename(label_pdf_file_path()))
+      # 更新数据库中的 LabelStatus 为 "已打印"
+      dbExecute(
+        con,
+        "UPDATE orders SET LabelStatus = '已打印' WHERE UsTrackingNumber = ?",
+        params = list(tracking_number)
+      )
+      orders_refresh_trigger(!orders_refresh_trigger())
+    }
+  )
   
+  # 监听 "已经到到齐" 表格行的点击事件
+  observeEvent(selected_orders_table_arrived_row(), {
+    selected_row <- selected_orders_table_arrived_row() 
+    req(selected_row) 
+    
+    tracking_number <- filtered_orders_arrived()[selected_row, "UsTrackingNumber"]
+    
+    # 如果运单号为空或缺失，显示提示信息
+    if (is.null(tracking_number) || tracking_number == "") {
+      showNotification("未找到运单号，请检查", type = "error")
+      return()  # 终止后续操作
+    }
+    
+    updateTabsetPanel(session, "inventory_us", selected = "发货") # 跳转到“发货”页面
+    
+    updateTextInput(session, "shipping_bill_number", value = tracking_number)
+  })
   
-  ##################################################################################################
-  ##################################################################################################
-  ##################################################################################################
+  # 监听 "没有到齐" 表格行的点击事件
+  observeEvent(selected_orders_table_waiting_row(), {
+    selected_row <- selected_orders_table_waiting_row() 
+    req(selected_row)
+    
+    tracking_number <- filtered_orders_waiting()[selected_row, "UsTrackingNumber"]
+    
+    # 如果运单号为空或缺失，显示提示信息
+    if (is.null(tracking_number) || tracking_number == "") {
+      showNotification("未找到运单号，请检查", type = "error")
+      return()  # 终止后续操作
+    }
+    
+    updateTabsetPanel(session, "inventory_us", selected = "发货") # 跳转到“发货”页面
+    
+    updateTextInput(session, "shipping_bill_number", value = tracking_number)
+  })
   
   
   
@@ -655,7 +473,7 @@
     id = "manage_filter",
     makers_items_map = makers_items_map
   )
-
+  
   # 采购商品图片处理模块
   image_manage <- imageModuleServer("image_manage")
   
@@ -722,7 +540,7 @@
     image_manage$reset()
   })
   
-  # 处理更新价格
+  # 处理更新物品信息
   observeEvent(input$update_info_btn, {
     # 获取所有选中行索引
     selected_rows <- unique_items_table_manage_selected_row()
@@ -739,6 +557,7 @@
     # 验证用户输入的新数据
     new_product_cost <- input$update_product_cost
     new_shipping_cost <- input$update_shipping_cost
+    new_purchase_date <- input$update_purchase_date
     
     if (is.null(new_product_cost) || new_product_cost < 0) {
       showNotification("请输入有效的单价！", type = "error")
@@ -746,6 +565,10 @@
     }
     if (is.null(new_shipping_cost) || new_shipping_cost < 0) {
       showNotification("请输入有效的国内运费！", type = "error")
+      return()
+    }
+    if (is.null(new_purchase_date) || !lubridate::is.Date(as.Date(new_purchase_date))) {
+      showNotification("请输入有效的采购日期！", type = "error")
       return()
     }
     
@@ -758,9 +581,9 @@
         dbExecute(
           con,
           "UPDATE unique_items 
-         SET ProductCost = ?, DomesticShippingCost = ? 
-         WHERE UniqueID = ?",
-          params = list(new_product_cost, new_shipping_cost, unique_id)
+                 SET ProductCost = ?, DomesticShippingCost = ?, PurchaseTime = ? 
+                 WHERE UniqueID = ?",
+          params = list(new_product_cost, new_shipping_cost, as.Date(new_purchase_date), unique_id)
         )
       })
       
@@ -774,8 +597,7 @@
     })
   })
   
-  
-  # 点击填写单价与运费
+  # 点击填写物品信息
   observeEvent(unique_items_table_manage_selected_row(), {
     selected_rows <- unique_items_table_manage_selected_row()
     
@@ -794,8 +616,8 @@
         # 更新输入框
         updateNumericInput(session, "update_product_cost", value = selected_data$ProductCost)
         updateNumericInput(session, "update_shipping_cost", value = selected_data$DomesticShippingCost)
+        updateDateInput(session, "update_purchase_date", value = as.Date(selected_data$PurchaseTime))
         
-        showNotification("已加载最新点击记录的信息！", type = "message")
       } else {
         showNotification("选中的行无效或数据为空！", type = "error")
       }
@@ -803,15 +625,13 @@
       showNotification("未选中任何行！", type = "warning")
     }
   })
-
+  
   # 清空
   observeEvent(input$clear_info_btn, {
     # 清空单价和运费输入框
     updateNumericInput(session, "update_product_cost", value = "")
     updateNumericInput(session, "update_shipping_cost", value = "")
-    
-    # 重置图片上传组件
-    image_manage$reset()
+    updateDateInput(session, "update_purchase_date", value = Sys.Date())
     
     showNotification("商品信息已清空！", type = "message")
   })
@@ -851,32 +671,31 @@
       for (i in seq_len(nrow(selected_items))) {
         unique_id <- selected_items$UniqueID[i]
         sku <- selected_items$SKU[i]
+        status <- selected_items$Status[i]  # 获取物品状态
         
         # 删除 unique_items 中对应的记录
         dbExecute(con, "
-          DELETE FROM unique_items
-          WHERE UniqueID = ?", params = list(selected_items$UniqueID[i]))
+              DELETE FROM unique_items
+              WHERE UniqueID = ?", params = list(unique_id))
         
         # 删除 item_status_history 中对应的历史状态记录
         dbExecute(con, "
-          DELETE FROM item_status_history
-          WHERE UniqueID = ?", params = list(unique_id))
+              DELETE FROM item_status_history
+              WHERE UniqueID = ?", params = list(unique_id))
         
-        remaining_items <- dbGetQuery(con, "
-                            SELECT COUNT(*) AS RemainingCount
-                            FROM unique_items
-                            WHERE SKU = ?", params = list(sku))
-        
-        if (remaining_items$RemainingCount[1] > 0) {
-          # 库存减一
-          adjust_inventory_quantity(con, sku, adjustment = -1)
-        } else {
-          # 如果没有剩余记录，删除 inventory 表中的该 SKU
-          dbExecute(con, "
-            DELETE FROM inventory
-            WHERE SKU = ?", params = list(sku))
+        if (status != "采购") {  # 如果状态不是采购，调整库存
+          remaining_quantity <- adjust_inventory_quantity(con, sku, adjustment = -1)
+          
+          if (is.null(remaining_quantity)) {
+            showNotification(paste("无法调整库存，SKU:", sku), type = "error")
+          } else if (remaining_quantity == 0) {
+            # 如果库存为 0，删除 inventory 表中的该 SKU
+            dbExecute(con, "
+                      DELETE FROM inventory
+                      WHERE SKU = ?", params = list(sku))
+            showNotification(paste0(sku, "已从库存表中移除！"), type = "message")
+          }
         }
-        inventory_refresh_trigger(!inventory_refresh_trigger())
       }
       
       dbCommit(con) # 提交事务
@@ -998,3 +817,184 @@
     }, error = function(e) {
       showNotification(paste("登记失败：", e$message), type = "error")
     })
+  })
+  
+  # 监听“仅显示无瑕品”开关的状态变化
+  observeEvent(input$show_perfects_only, {
+    if (input$show_perfects_only && input$show_defects_only) {
+      updateSwitchInput(session, "show_defects_only", value = FALSE)
+    }
+  })
+  
+  # 监听“仅显示瑕疵品”开关的状态变化
+  observeEvent(input$show_defects_only, {
+    if (input$show_defects_only && input$show_perfects_only) {
+      updateSwitchInput(session, "show_perfects_only", value = FALSE)
+    }
+  })
+  
+  
+  
+  ################################################################
+  ##                                                            ##
+  ## 国际物流管理分页                                           ##
+  ##                                                            ##
+  ################################################################
+  
+  # 筛选逻辑
+  itemFilterServer(
+    id = "logistic_filter",
+    makers_items_map = makers_items_map)
+  
+  ######################
+  ### 国际运单登记分页
+  ######################
+  
+  # 登记运单信息
+  observeEvent(input$register_shipment_btn, {
+    req(input$intl_tracking_number, input$intl_shipping_method, input$intl_total_shipping_cost)
+    
+    # 获取用户输入的值
+    tracking_number <- trimws(input$intl_tracking_number)
+    shipping_method <- input$intl_shipping_method
+    total_cost <- as.numeric(input$intl_total_shipping_cost)
+    
+    tryCatch({
+      # 更新或插入运单记录
+      dbExecute(
+        con,
+        "INSERT INTO intl_shipments (TrackingNumber, ShippingMethod, TotalCost, Status)
+       VALUES (?, ?, ?, '运单创建')
+       ON DUPLICATE KEY UPDATE 
+         ShippingMethod = VALUES(ShippingMethod), 
+         TotalCost = VALUES(TotalCost),
+         UpdatedAt = CURRENT_TIMESTAMP",
+        params = list(tracking_number, shipping_method, total_cost)
+      )
+      
+      # # 生成交易记录的备注
+      # remarks <- paste0("[国际运费登记]", " 运单号：", tracking_number, " 运输方式：", shipping_method)
+      # 
+      # # 生成交易记录的 ID
+      # transaction_id <- generate_transaction_id("一般户卡", total_cost, remarks, Sys.time())
+      # 
+      # # 插入交易记录到“一般户卡”
+      # dbExecute(
+      #   con,
+      #   "INSERT INTO transactions (TransactionID, AccountType, Amount, Remarks, TransactionTime) 
+      #  VALUES (?, ?, ?, ?, ?)",
+      #   params = list(
+      #     transaction_id,
+      #     "一般户卡", 
+      #     -total_cost,  # 转出金额为负值
+      #     remarks,
+      #     Sys.time()
+      #   )
+      # )
+      # 
+      # showNotification("国际运单登记成功，相关费用已记录到'一般户卡（541）'！", type = "message")
+      # 
+      # # 重新计算所有balance记录
+      # update_balance("一般户卡", con)
+      
+      shinyjs::enable("link_tracking_btn")  # 启用挂靠运单按钮
+    }, error = function(e) {
+      showNotification(paste("操作失败：", e$message), type = "error")
+    })
+  })
+  
+  # 查询运单逻辑
+  observeEvent(input$intl_tracking_number, {
+    tracking_number <- input$intl_tracking_number
+    
+    if (is.null(tracking_number) || tracking_number == "") {
+      # 如果运单号为空，清空相关输入字段并禁用按钮
+      updateSelectInput(session, "intl_shipping_method", selected = "空运")
+      updateNumericInput(session, "intl_total_shipping_cost", value = 0)
+      shinyjs::disable("link_tracking_btn")  # 禁用挂靠运单按钮
+      output$intl_status_display <- renderText({ "" })  # 清空状态显示
+      return()
+    }
+    
+    tryCatch({
+      # 查询运单号对应的信息
+      shipment_info <- dbGetQuery(
+        con,
+        "SELECT ShippingMethod, TotalCost, Status FROM intl_shipments WHERE TrackingNumber = ?",
+        params = list(tracking_number)
+      )
+      
+      if (nrow(shipment_info) > 0) {
+        # 如果运单号存在，回填信息
+        updateSelectInput(session, "intl_shipping_method", selected = shipment_info$ShippingMethod[1])
+        updateNumericInput(session, "intl_total_shipping_cost", value = shipment_info$TotalCost[1])
+        shinyjs::enable("link_tracking_btn")  # 启用挂靠运单按钮
+        
+        # 显示物流状态
+        output$intl_status_display <- renderText({
+          paste("物流状态:", shipment_info$Status[1])
+        })
+        
+      } else {
+        # 如果运单号不存在，清空相关字段并禁用按钮
+        updateSelectInput(session, "intl_shipping_method", selected = "空运")
+        updateNumericInput(session, "intl_total_shipping_cost", value = 0)
+        shinyjs::disable("link_tracking_btn")  # 禁用挂靠运单按钮
+        
+        # 提示未找到状态
+        output$intl_status_display <- renderText({
+          "未找到对应的运单信息，可以登记新运单！"
+        })
+      }
+    }, error = function(e) {
+      # 遇到错误时禁用按钮并清空状态显示
+      shinyjs::disable("link_tracking_btn")
+      output$intl_status_display <- renderText({
+        paste("查询失败：", e$message)
+      })
+      showNotification(paste("加载运单信息失败：", e$message), type = "error")
+    })
+  })
+  
+  # 货值汇总显示
+  observeEvent(input$batch_value_btn, {
+    tracking_number <- input$intl_tracking_number
+    
+    if (is.null(tracking_number) || tracking_number == "") {
+      showNotification("请输入运单号后再执行此操作！", type = "error")
+      return()
+    }
+    
+    tryCatch({
+      # 查询与运单号相关的汇总信息
+      summary_info <- dbGetQuery(
+        con,
+        "
+      SELECT 
+        COUNT(*) AS TotalQuantity,
+        SUM(ProductCost) AS TotalValue,
+        SUM(DomesticShippingCost) AS TotalDomesticShipping,
+        SUM(IntlShippingCost) AS TotalIntlShipping
+      FROM unique_items
+      WHERE IntlTracking = ?
+      ",
+        params = list(tracking_number)
+      )
+      
+      # 查询运单号的运输方式
+      shipping_method_info <- dbGetQuery(
+        con,
+        "SELECT ShippingMethod FROM intl_shipments WHERE TrackingNumber = ?",
+        params = list(tracking_number)
+      )
+      
+      if (nrow(summary_info) == 0 || is.na(summary_info$TotalQuantity[1])) {
+        showNotification("未找到与当前运单号相关的货物信息！", type = "warning")
+        return()
+      }
+      
+      # 确定运输方式
+      shipping_method <- ifelse(nrow(shipping_method_info) > 0, shipping_method_info$ShippingMethod[1], "未知")
+      
+      # 计算总价值合计
+      total_value_sum <- summary_info$TotalValue[1] + summary_info$TotalDomesticShipping[1] + summary_info$TotalIntlShipping[1]

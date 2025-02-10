@@ -1,72 +1,46 @@
-            selectInput(
-              inputId = "from_account",
-              label = "转出账户:",
-              choices = c("工资卡", "美元卡", "买货卡", "一般户卡"),
-              selected = "美元卡",
-              width = "100%"
-            ),
-            
-            # 转入账户选择
-            selectInput(
-              inputId = "to_account",
-              label = "转入账户:",
-              choices = c("工资卡", "美元卡", "买货卡", "一般户卡"),
-              selected = NULL,
-              width = "100%"
-            ),
-            
-            # 备注输入框
-            textAreaInput("transfer_remarks", "备注:", placeholder = "请输入备注内容", width = "100%"),
-            
-            # 转移登记按钮
-            actionButton("record_transfer", "记录转移", icon = icon("exchange-alt"), 
-                         class = "btn-success", style = "width: 100%;")
-          )
-        )
-      ),
-      div(
-        class = "main-panel",
-        tabsetPanel(
-          id = "transaction_tabs",  # 绑定到 input$tabs
-          tabPanel("账户余额总览", 
-          fluidRow(
-           column(12, div(
-             class = "card shadow-sm",
-             style = "background-color: #343A40; color: white; padding: 20px; text-align: center; border-radius: 8px; margin-bottom: 20px;",
-             tags$h4("总余额", style = "font-weight: bold;"),
-             tags$h3(textOutput("total_balance"))
-           ))
-          ),
-          fluidRow(
-            column(3, div(
-              class = "card shadow-sm",
-              style = "background-color: #FFC107; color: white; padding: 20px; text-align: center; border-radius: 8px;",
-              tags$h4("买货卡(139)", style = "font-weight: bold;"),
-              tags$h3(textOutput("purchase_balance"))
-            )),
-            column(3, div(
-              class = "card shadow-sm",
-              style = "background-color: #6C757D; color: white; padding: 20px; text-align: center; border-radius: 8px;",
-              tags$h4("一般户卡(541)", style = "font-weight: bold;"),
-              tags$h3(textOutput("general_balance"))
-            )),
-            column(3, div(
-              class = "card shadow-sm",
-              style = "background-color: #007BFF; color: white; padding: 20px; text-align: center; border-radius: 8px;",
-              tags$h4("工资卡(567)", style = "font-weight: bold;"),
-              tags$h3(textOutput("salary_balance"))
-            )),
-            column(3, div(
-              class = "card shadow-sm",
-              style = "background-color: #28A745; color: white; padding: 20px; text-align: center; border-radius: 8px;",
-              tags$h4("美元卡(553)", style = "font-weight: bold;"),
-              tags$h3(textOutput("dollar_balance"))
-            ))
+              tags$div(
+                tags$h5("在途", style = "font-size: 16px; font-weight: bold; margin-bottom: 10px;"),
+                tags$p(
+                  textOutput("after_20241223_logistics_value", container = span, inline = TRUE),
+                  " | ",
+                  textOutput("after_20241223_logistics_shipping", container = span, inline = TRUE),
+                  style = "font-size: 14px; margin-bottom: 0;"
+                )
+              ),
+              tags$div(
+                tags$h5("美国", style = "font-size: 16px; font-weight: bold; margin-bottom: 10px;"),
+                tags$p(
+                  textOutput("after_20241223_us_value", container = span, inline = TRUE),
+                  " | ",
+                  textOutput("after_20241223_us_shipping", container = span, inline = TRUE),
+                  style = "font-size: 14px; margin-bottom: 0;"
+                )
+              ),
+              tags$div(
+                tags$h5("售出", style = "font-size: 16px; font-weight: bold; margin-bottom: 10px;"),
+                tags$p(
+                  textOutput("after_20241223_sold_value", container = span, inline = TRUE),
+                  " | ",
+                  textOutput("after_20241223_sold_shipping", container = span, inline = TRUE),
+                  style = "font-size: 14px; margin-bottom: 0;"
+                )
+              )
+            )
+          ))
+        ),
+        fluidRow(
+          column(6, div(
+            class = "card shadow-lg",
+            style = "background: #e0e0e0; color: black; padding: 15px; text-align: center; border-radius: 16px; margin-top: 20px;",
+            tags$h4("公司债务", style = "font-weight: bold; margin-bottom: 10px;"),
+            tags$h3(textOutput("company_liabilities"), style = "font-size: 24px; font-weight: bold; color: #007BFF; margin-bottom: 0;")
           )),
-          tabPanel(title = "买货卡(139)", value = "买货卡", DTOutput("purchase_card_table")),
-          tabPanel(title = "一般户卡(541)", value = "一般户卡", DTOutput("general_card_table")),
-          tabPanel(title = "工资卡(567)", value = "工资卡", DTOutput("salary_card_table")),
-          tabPanel(title = "美元卡(553)", value = "美元卡", DTOutput("dollar_card_table"))
+          column(6, div(
+            class = "card shadow-lg",
+            style = "background: #e0e0e0; color: black; padding: 15px; text-align: center; border-radius: 16px; margin-top: 20px;",
+            tags$h4("社保(初始资金4618)", style = "font-weight: bold; margin-bottom: 10px;"),
+            tags$h3(textOutput("social_security"), style = "font-size: 24px; font-weight: bold; color: #007BFF; margin-bottom: 0;")
+          ))
         )
       )
     )
@@ -78,7 +52,6 @@
       class = "layout-container",  # Flexbox 容器
       div(
         class = "sticky-sidebar",  # sticky 侧边栏
-        
         itemFilterUI(id = "query_filter", border_color = "#28A745", text_color = "#28A745", use_status = FALSE, use_purchase_date = FALSE),
         
         tags$hr(),
@@ -91,19 +64,25 @@
           actionButton("clear_query_sku_btn", "清空", icon = icon("eraser"), class = "btn btn-warning")
         )
       ),
+      
+      div(
+        class = "resizable-divider",
+      ),
+      
       div(
         class = "main-panel",
         # 使用 tabsetPanel 来组织分页
         tabsetPanel(
           id = "query_tabs",
+          type = "pills",
           tabPanel(
             "商品状态",
             fluidRow(
               column(
-                4,
+                5,
                 div(
                   class = "card",
-                  style = "height: 453.89px; margin-bottom: 5px; padding: 5px; border: 1px solid #007BFF; border-radius: 8px; box-shadow: 0px 4px 6px rgba(0,0,0,0.1);",
+                  style = "height: 370px; margin-bottom: 5px; padding: 5px; border: 1px solid #007BFF; border-radius: 8px; box-shadow: 0px 4px 6px rgba(0,0,0,0.1);",
                   tags$h4("商品信息", style = "color: #007BFF; font-weight: bold; padding-left: 10px;"),
                   uiOutput("query_item_info") # 动态渲染物品信息
                 )
@@ -114,18 +93,18 @@
                 div(
                   class = "card",
                   style = "margin-bottom: 5px; padding: 5px; border: 1px solid #28a745; border-radius: 8px; box-shadow: 0px 4px 6px rgba(0,0,0,0.1);",
-                  tags$h4("库存状态图表", style = "color: #28a745; font-weight: bold; padding-left: 10px;"),
-                  plotlyOutput("inventory_status_chart", height = "400px") # 使用 plotlyOutput
+                  tags$h4("库存状态", style = "color: #28a745; font-weight: bold; padding-left: 10px;"),
+                  plotlyOutput("inventory_status_chart", height = "320px") # 使用 plotlyOutput
                 )
               ),
               
               column(
-                4,
+                3,
                 div(
                   class = "card",
                   style = "margin-bottom: 5px; padding: 5px; border: 1px solid #dc3545; border-radius: 8px; box-shadow: 0px 4px 6px rgba(0,0,0,0.1);",
-                  tags$h4("瑕疵情况图表", style = "color: #dc3545; font-weight: bold; padding-left: 10px"),
-                  plotlyOutput("defect_status_chart", height = "400px") # 使用 plotlyOutput
+                  tags$h4("瑕疵情况", style = "color: #dc3545; font-weight: bold; padding-left: 10px"),
+                  plotlyOutput("defect_status_chart", height = "320px") # 使用 plotlyOutput
                 )
               )
             ),
@@ -172,7 +151,7 @@
                            radioButtons(
                              "expense_type",
                              label = "选择显示内容",
-                             choices = c("物品成本+国内运费" = "cost_domestic", "物品成本" = "cost", "国内运费" = "domestic_shipping", "国际运费" = "intl_shipping", "总开销" = "total"),
+                             choices = c("成本+国内运费" = "cost_domestic", "成本" = "cost", "国内运费" = "domestic_shipping", "国际运费" = "intl_shipping", "总开销" = "total"),
                              selected = "cost_domestic",
                              inline = TRUE # 使选项横向排列
                            )),
@@ -191,13 +170,11 @@
                     column(9, plotlyOutput("expense_chart", height = "350px")), # 80% 宽度柱状图
                     column(3, plotlyOutput("pie_chart", height = "350px"))  # 20% 宽度饼图
                   ),
-                  uiOutput("confirm_expense_check_ui"),
                   uniqueItemsTableUI("expense_details_table") # 物品详情表
                 )
               )
             )
           ), # end of 开销汇总tab
-          
           
           tabPanel(
             "库存总览",
@@ -325,11 +302,8 @@
                 )
               )
             )
-            
           ) # end of 库存汇总tab
-          
-          
-        ) #end of tabpanel
+        ) #end of tabsetPanel
       )
     )
   ), # end of 查询 tab
@@ -340,7 +314,6 @@
       class = "layout-container",  # Flexbox 容器
       div(
         class = "sticky-sidebar",  # sticky 侧边栏
-        
         div(
           class = "card shadow-sm", # 添加卡片样式
           style = "border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; background-color: #f9f9f9;",
@@ -393,9 +366,12 @@
           class = "btn-primary",
           style = "width: 100%; margin-top: 10px;"
         )
-        
-        
       ),
+      
+      div(
+        class = "resizable-divider",
+      ),
+      
       div(
         class = "main-panel",
         uniqueItemsTableUI("unique_items_table_download")
@@ -414,6 +390,11 @@
         tags$hr(),
         uiOutput("admin_controls")
       ),
+      
+      div(
+        class = "resizable-divider",
+      ),
+      
       div(
         class = "main-panel",
         uniqueItemsTableUI("admin_items_table")  # 使用你的模组渲染物品明细表

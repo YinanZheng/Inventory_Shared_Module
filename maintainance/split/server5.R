@@ -1,52 +1,3 @@
-  })
-  
-  #################################################################
-  
-  # 开销统计
-  expense_summary_data <- reactive({
-    req(input$time_range)
-    data <- unique_items_data()
-    
-    start_date <- as.Date(input$time_range[1])
-    end_date <- as.Date(input$time_range[2])
-    
-    time_sequence <- switch(input$precision,
-                            "天" = seq.Date(from = start_date, to = end_date, by = "day"),
-                            "周" = seq.Date(from = floor_date(start_date, "week"),
-                                           to = floor_date(end_date, "week"), by = "week"),
-                            "月" = seq.Date(from = floor_date(start_date, "month"),
-                                           to = floor_date(end_date, "month"), by = "month"),
-                            "年" = seq.Date(from = floor_date(start_date, "year"),
-                                           to = floor_date(end_date, "year"), by = "year"))
-    
-    time_df <- data.frame(GroupDate = time_sequence)
-    
-    summarized_data <- data %>%
-      filter(!is.na(PurchaseTime) & PurchaseTime >= start_date & PurchaseTime <= end_date) %>%
-      mutate(
-        GroupDate = case_when(
-          input$precision == "天" ~ as.Date(PurchaseTime),
-          input$precision == "周" ~ floor_date(as.Date(PurchaseTime), "week"),
-          input$precision == "月" ~ floor_date(as.Date(PurchaseTime), "month"),
-          input$precision == "年" ~ floor_date(as.Date(PurchaseTime), "year")
-        )
-      ) %>%
-      group_by(GroupDate) %>%
-      summarise(
-        Cost_Domestic = sum(ProductCost + DomesticShippingCost, na.rm = TRUE),
-        ProductCost = sum(ProductCost, na.rm = TRUE),
-        DomesticShippingCost = sum(DomesticShippingCost, na.rm = TRUE),
-        IntlShippingCost = sum(IntlShippingCost, na.rm = TRUE),
-        TotalExpense = sum(ProductCost + DomesticShippingCost + IntlShippingCost, na.rm = TRUE),
-        AllPurchaseCheck = all(PurchaseCheck == 1, na.rm = TRUE), # 是否全部为1
-        .groups = "drop"
-      )
-    
-    complete_data <- time_df %>%
-      left_join(summarized_data, by = "GroupDate") %>%
-      replace_na(list(
-        Cost_Domestic = 0,
-        ProductCost = 0,
         DomesticShippingCost = 0,
         IntlShippingCost = 0,
         TotalExpense = 0,
@@ -141,9 +92,9 @@
           showgrid = FALSE
         ),
         yaxis = list(
-          title = "采购开销（元）",
+          title = "开销（元）",
           tickfont = list(size = 12),
-          range = c(0, max(data[[y_var]], na.rm = TRUE) * 1.2) # 给顶部留空间
+          showgrid = TRUE  # 保留网格线
         ),
         margin = list(l = 50, r = 20, t = 20, b = 50),
         showlegend = FALSE,
@@ -156,7 +107,7 @@
       observer_click$resume()
       is_observer_click_suspended(FALSE)
     }
-
+    
     p
   })
   
@@ -165,7 +116,7 @@
     clicked_point <- event_data("plotly_click", source = "expense_chart")
     if (!is.null(clicked_point)) {
       precision <- input$precision # 当前精度（天、周、月、年）
-
+      
       # 根据精度解析点击的时间点
       clicked_date <- switch(
         precision,
@@ -192,7 +143,7 @@
       selected_range(range)
     }
   })
-
+  
   # 筛选物品详情数据
   filtered_items <- reactive({
     req(selected_range()) # 确保时间范围存在
@@ -270,164 +221,26 @@
     )
   })
   
-  # 开销核对动态UI
-  output$confirm_expense_check_ui <- renderUI({
-    req(selected_range()) # 确保有选定的时间范围
-    
-    range <- selected_range() # 获取当前选定的时间范围
-    
-    # 判断范围是否相等
-    label_text <- if (range[1] == range[2]) {
-      paste0("确认开销核对（采购时间：", range[1], "）")
-    } else {
-      paste0("确认开销核对（采购时间：", range[1], " 至 ", range[2], "）")
-    }
-    
-    actionButton(
-      inputId = "confirm_expense_check_btn", 
-      label = label_text,
-      icon = icon("check-circle"), 
-      class = "btn-success",
-      style = "width: 100%; margin-top: 5px;"
-    )
-  })
-  
-  # 确认开销核对
-  observeEvent(input$confirm_expense_check_btn, {
-    req(filtered_items()) # 确保筛选出的物品数据存在
-    
-    # 获取筛选出的物品
-    items_to_update <- filtered_items()
-    
-    if (nrow(items_to_update) == 0) {
-      showNotification("当前筛选无物品可核对，请选择有效的柱子！", type = "error")
-      return(NULL)
-    }
-    
-    # 按采购时间分组统计
-    grouped_expenses <- items_to_update %>%
-      group_by(PurchaseTime) %>%
-      summarise(
-        TotalCost = sum(ProductCost, na.rm = TRUE),
-        TotalDomesticShipping = sum(DomesticShippingCost, na.rm = TRUE)
-      )
-    
-    # 更新数据库中的 PurchaseCheck 为 1
-    tryCatch({
-      dbExecute(
-        con,
-        "UPDATE unique_items SET PurchaseCheck = 1 WHERE UniqueID IN (?)",
-        params = list(items_to_update$UniqueID)
-      )
-      
-      unique_items_data_refresh_trigger(!unique_items_data_refresh_trigger())
-      
-      showNotification(paste("成功更新", nrow(items_to_update), "条物品的开销核对状态！"), type = "message")
-      
-      # 将物品成本和国内运费分别登记到"一般户卡"
-      grouped_expenses %>%
-        rowwise() %>%
-        mutate(
-          # 生成物品成本的交易记录
-          CostTransaction = if (TotalCost > 0) {
-            remarks_cost <- paste("[采购成本已核对]", "采购日期:", PurchaseTime)
-            transaction_id <- generate_transaction_id("买货卡", TotalCost, remarks_cost, PurchaseTime)
-            dbExecute(
-              con,
-              "INSERT INTO transactions (TransactionID, AccountType, Amount, Remarks, TransactionTime) VALUES (?, ?, ?, ?, ?)",
-              params = list(
-                transaction_id,
-                "买货卡",
-                -TotalCost,
-                remarks_cost,
-                PurchaseTime
-              )
-            )
-            list(transaction_id) # 返回记录的 ID
-          } else {
-            list(NULL) # 如果总成本为 0，返回 NULL
-          },
-          
-          # 生成国内运费的交易记录
-          ShippingTransaction = if (TotalDomesticShipping > 0) {
-            remarks_ship <- paste("[国内运费已核对]", "采购日期:", PurchaseTime)
-            transaction_id <- generate_transaction_id("买货卡", TotalDomesticShipping, remarks_ship, PurchaseTime)
-            dbExecute(
-              con,
-              "INSERT INTO transactions (TransactionID, AccountType, Amount, Remarks, TransactionTime) VALUES (?, ?, ?, ?, ?)",
-              params = list(
-                transaction_id,
-                "买货卡",
-                -TotalDomesticShipping,
-                remarks_ship,
-                PurchaseTime
-              )
-            )
-            list(transaction_id) # 返回记录的 ID
-          } else {
-            list(NULL) # 如果国内运费为 0，返回 NULL
-          }
-        )
-      
-      showNotification("核对后的采购开销与国内运费已登记到'买货卡（139）'！", type = "message")
-      
-      # 重新计算所有balance记录
-      update_balance("买货卡", con)
-
-    }, error = function(e) {
-      showNotification(paste0("更新失败!", e), type = "error")
-    })
-  })
-  
-  
   #################################################################
   
   # 库存总览数据统计
   overview_data <- reactive({
-    data <- unique_items_data()
-    domestic <- data %>% filter(Status == "国内入库")
-    logistics <- data %>% filter(Status == "国内出库")
-    us <- data %>% filter(Status == "美国入库")
-    sold <- data %>% filter(Status %in% c("国内售出", "美国调货", "美国发货"))
-    
-    list(
-      domestic = list(
-        count = nrow(domestic),
-        value = sum(domestic$ProductCost, na.rm = TRUE),
-        shipping = sum(domestic$IntlShippingCost + domestic$DomesticShippingCost, na.rm = TRUE)
-      ),
-      logistics = list(
-        count = nrow(logistics),
-        value = sum(logistics$ProductCost, na.rm = TRUE),
-        shipping = sum(logistics$IntlShippingCost + logistics$DomesticShippingCost, na.rm = TRUE)
-      ),
-      us = list(
-        count = nrow(us),
-        value = sum(us$ProductCost, na.rm = TRUE),
-        shipping = sum(us$IntlShippingCost + us$DomesticShippingCost, na.rm = TRUE)
-      ),
-      sold = list(
-        count = nrow(sold),
-        us_shipping_count = nrow(sold %>% filter(Status == "美国发货")),
-        value = sum(sold$ProductCost, na.rm = TRUE),
-        shipping = sum(sold$IntlShippingCost + sold$DomesticShippingCost, na.rm = TRUE)
-      )
-    )
+    process_data(unique_items_data())
   })
-  
+
   # 输出卡片数据
   output$domestic_total_count <- renderText({ overview_data()$domestic$count })
   output$domestic_total_value <- renderText({ sprintf("¥%.2f", overview_data()$domestic$value) })
   output$domestic_shipping_cost <- renderText({ sprintf("¥%.2f", overview_data()$domestic$shipping) })
-  
+
   output$logistics_total_count <- renderText({ overview_data()$logistics$count })
   output$logistics_total_value <- renderText({ sprintf("¥%.2f", overview_data()$logistics$value) })
   output$logistics_shipping_cost <- renderText({ sprintf("¥%.2f", overview_data()$logistics$shipping) })
-  
+
   output$us_total_count <- renderText({ overview_data()$us$count })
   output$us_total_value <- renderText({ sprintf("¥%.2f", overview_data()$us$value) })
   output$us_shipping_cost <- renderText({ sprintf("¥%.2f", overview_data()$us$shipping) })
-  
+
   output$sold_total_count <- renderText({ overview_data()$sold$count })
   output$sold_total_count_with_shipping <- renderText({
     count <- overview_data()$sold$count
@@ -436,14 +249,35 @@
   })
   output$sold_total_value <- renderText({ sprintf("¥%.2f", overview_data()$sold$value) })
   output$sold_shipping_cost <- renderText({ sprintf("¥%.2f", overview_data()$sold$shipping) })
-  
+
   # 状态流转桑基图
   output$status_sankey <- renderSankeyNetwork({
     # 获取物品状态历史数据
     history_data <- item_status_history()
     
+    filtered_data <- history_data %>%
+      # 标记含有重复状态的 UniqueID
+      left_join(
+        history_data %>%
+          group_by(UniqueID, previous_status) %>%
+          filter(n() > 1) %>%  # 找到重复状态的 UniqueID
+          summarise(
+            first_occurrence = if (n() > 0) min(change_time, na.rm = TRUE) else NA,  # 如果数据为空返回 NA
+            last_occurrence = if (n() > 0) max(change_time, na.rm = TRUE) else NA,  # 如果数据为空返回 NA
+            .groups = "drop"
+          ) %>%
+          distinct(UniqueID, first_occurrence, last_occurrence),  # 保留 UniqueID 的时间范围
+        by = "UniqueID"
+      ) %>%
+      # 删除重复状态的中间记录
+      filter(
+        is.na(first_occurrence) | !(change_time >= first_occurrence & change_time < last_occurrence)
+      ) %>%
+      # 按 UniqueID 和 change_time 排序
+      arrange(UniqueID, change_time)
+    
     # 确保状态流转顺序正确
-    links <- history_data %>%
+    links <- filtered_data %>%
       group_by(UniqueID) %>%
       arrange(previous_status_timestamp, .by_group = TRUE) %>%
       mutate(next_status = lead(previous_status)) %>%  # 获取下一个状态
@@ -481,7 +315,6 @@
     )
   })
   
-  
   #################################################################
   
   # 清空sku输入框
@@ -499,6 +332,36 @@
     }
   })
   
+  # 监听用户点击图片列
+  observeEvent(input$filtered_inventory_table_query_cell_clicked, {
+    info <- input$filtered_inventory_table_query_cell_clicked
+    
+    # 检查是否点击了图片列（第三列）
+    if (!is.null(info) && !is.null(info$col) && !is.null(info$row)) {
+      if (info$col == 2) {  # 第三列在 R 中的索引是 2
+        
+        img_path <- as.character(filtered_inventory()[info$row, "ItemImagePath"])
+        
+        img_host_path <- paste0(host_url, "/images/", basename(img_path))
+        
+        # 弹出窗口显示大图
+        showModal(modalDialog(
+          title = "物品图片预览",
+          tags$div(
+            style = "overflow: auto; max-height: 700px; text-align: center;",
+            tags$img(
+              src = img_host_path,
+              style = "max-width: 100%; height: auto; display: inline-block;"
+            )
+          ),
+          size = "l",
+          easyClose = TRUE,
+          footer = NULL
+        ))
+      }
+    }
+  })
+  
   
   
   ################################################################
@@ -506,6 +369,7 @@
   ## 数据下载分页                                               ##
   ##                                                            ##
   ################################################################
+  
   
   # 动态生成供应商筛选器
   output$download_maker_ui <- renderUI({
@@ -518,6 +382,7 @@
       placeholder = "搜索供应商..."
     )
   })
+  
   
   # 监听供应商选择变化并动态更新商品名称
   observe({
@@ -556,8 +421,9 @@
     updateDateRangeInput(session, "download_date_range", start = Sys.Date() - 365, end = Sys.Date())
   })
   
+  
   # 下载物品汇总表为 Excel
-  output$download_details_xlsx <- downloadHandler(
+  output$download_summary_xlsx <- downloadHandler(
     filename = function() {
       paste("物品汇总表（按采购日期）-", format(Sys.time(), "%Y%m%d-%H%M%S", tz = "Asia/Shanghai"), ".xlsx", sep = "")
     },
@@ -573,7 +439,7 @@
       data <- map_column_names(data, column_mapping = list(
         SKU = "条形码",
         ItemName = "商品名",
-        ItemImagePath = "商品图",
+        ItemImagePath = "商品图片",
         Maker = "供应商",
         MajorType = "大类",
         MinorType = "小类",
@@ -603,7 +469,7 @@
         group_by(`条形码`, `采购日`) %>%
         summarize(
           商品名 = first(`商品名`),
-          商品图 = first(`商品图`),
+          商品图片 = first(`商品图片`),
           供应商 = first(`供应商`),
           大类 = first(`大类`),
           小类 = first(`小类`),
@@ -623,7 +489,7 @@
       writeData(wb, "物品汇总表", final_data, startCol = 1, startRow = 1)
       
       # 图片插入的列号
-      col_to_insert <- which(colnames(final_data) == "商品图")
+      col_to_insert <- which(colnames(final_data) == "商品图片")
       
       # 设置固定高度 1 inch，计算动态宽度
       image_height <- 1
@@ -665,7 +531,7 @@
           setRowHeights(wb, "物品汇总表", rows = row_to_insert, heights = image_height * 78)
           
         } else {
-          showNotification(paste("跳过不存在的图片:", image_path), type = "warning", duration = 5)
+          showNotification(paste("跳过不存在的图片:", image_path), type = "warning")
         }
       }
       
@@ -677,12 +543,13 @@
       
       # 保存 Excel 文件
       saveWorkbook(wb, file, overwrite = TRUE)
-      showNotification("Excel 文件已成功下载", type = "message", duration = 5)
+      showNotification("Excel 文件已成功下载", type = "message")
     }
   )
   
+  
   # 下载物品明细表为 Excel
-  output$download_summary_xlsx <- downloadHandler(
+  output$download_details_xlsx <- downloadHandler(
     filename = function() {
       paste("物品明细表-", format(Sys.time(), "%Y%m%d-%H%M%S", tz = "Asia/Shanghai"), ".xlsx", sep = "")
     },
@@ -742,7 +609,7 @@
           setRowHeights(wb, "物品明细表", rows = row_to_insert, heights = image_height * 78)
           
         } else {
-          showNotification(paste("跳过不存在的图片:", image_path), type = "warning", duration = 5)
+          showNotification(paste("跳过不存在的图片:", image_path), type = "warning")
         }
       }
       
@@ -754,15 +621,15 @@
       
       # 保存 Excel 文件
       saveWorkbook(wb, file, overwrite = TRUE)
-      showNotification("Excel 文件已成功下载", type = "message", duration = 5)
+      showNotification("Excel 文件已成功下载", type = "message")
     }
   )
-
+  
   
   
   ################################################################
   ##                                                            ##
-  ## 管理员                                                     ##
+  ## 移库模块（管理员模式）                                     ##
   ##                                                            ##
   ################################################################
   
@@ -789,7 +656,7 @@
         
         # 目标状态选择
         selectInput("admin_target_status", "目标库存状态改为：", 
-                    choices = c('采购','国内入库','国内出库','国内售出','美国入库','美国售出','美国发货','美国调货','退货'), 
+                    choices = c('采购','国内入库','国内出库','国内售出','美国入库','美国发货','美国调货','退货'), 
                     selected = NULL, width = "100%"),
         
         # 是否记录修改时间
@@ -829,14 +696,17 @@
   unique_items_table_admin_selected_row <- callModule(uniqueItemsTableServer, "admin_items_table", 
                                                       column_mapping = c(common_columns, list(
                                                         Defect = "瑕疵态",
-                                                        PurchaseTime = "采购日",
+                                                        urchaseTime = "采购日",
                                                         DomesticEntryTime = "入库日",
                                                         DomesticExitTime = "出库日",
-                                                        DomesticSoldTime = "出售日",
-                                                        IntlShippingMethod = "国际运输",
+                                                        DomesticSoldTime = "售出日",
+                                                        UsEntryTime = "美入库日",
+                                                        UsRelocationTime = "美调货日",
+                                                        UsShippingTime = "美发货日",
                                                         OrderID = "订单号"
                                                       )), 
-                                                      selection = "multiple", 
+                                                      selection = "multiple",
+                                                      option = modifyList(table_default_options, list(searching = TRUE)),
                                                       data = unique_items_data)
   
   # 更新库存状态按钮
@@ -872,10 +742,10 @@
         )
       })
       
-      # 更新数据并触发 UI 刷新
+      # 通知成功并刷新数据
+      showNotification("库存状态更新成功！", type = "message")
       unique_items_data_refresh_trigger(!unique_items_data_refresh_trigger())
       
-      showNotification("库存状态更新成功！", type = "message")
     }, error = function(e) {
       # 捕获错误并通知用户
       showNotification(paste("库存状态更新失败：", e$message), type = "error")
@@ -911,10 +781,10 @@
         )
       })
       
-      # 更新数据并触发 UI 刷新
+      # 通知成功并刷新数据
+      showNotification("瑕疵品状态更新成功！", type = "message")
       unique_items_data_refresh_trigger(!unique_items_data_refresh_trigger())
       
-      showNotification("瑕疵品状态更新成功！", type = "message")
     }, error = function(e) {
       # 捕获错误并通知用户
       showNotification(paste("瑕疵品状态更新失败：", e$message), type = "error")
@@ -983,10 +853,7 @@
       showNotification(paste("修改库存总数时发生错误：", e$message), type = "error")
     })
   })
-  
-  
-  #########################################################################################################################
-  
+
   # Disconnect from the database on app stop
   onStop(function() {
     dbDisconnect(con)

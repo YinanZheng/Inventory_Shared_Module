@@ -27,7 +27,7 @@ server <- function(input, output, session) {
   # 触发item_status_history刷新
   item_status_history_refresh_trigger <- reactiveVal(FALSE)
   
-  # 用于存储 barcode PDF 文件路径
+  # 用于存储条形码 PDF 文件路径
   barcode_pdf_file_path <- reactiveVal(NULL)
   
   # 用于存储运单 PDF 文件路径
@@ -82,13 +82,21 @@ server <- function(input, output, session) {
           SELECT 
             SKU,
             AVG(ProductCost) AS AvgProductCost,
-            AVG(DomesticShippingCost + IntlShippingCost) AS AvgShippingCost
+            AVG(DomesticShippingCost + IntlShippingCost) AS AvgShippingCost,
+            SUM(Status IN ('国内入库', '国内出库', '美国入库')) AS TotalQuantity,
+            SUM(Status = '国内入库') AS DomesticQuantity,
+            SUM(Status = '国内出库') AS TransitQuantity,
+            SUM(Status = '美国入库') AS UsQuantity
           FROM unique_items
           GROUP BY SKU
         ) u ON i.SKU = u.SKU
         SET 
           i.ProductCost = ROUND(u.AvgProductCost, 2),
-          i.ShippingCost = ROUND(u.AvgShippingCost, 2)
+          i.ShippingCost = ROUND(u.AvgShippingCost, 2),
+          i.Quantity = u.TotalQuantity,
+          i.DomesticQuantity = u.DomesticQuantity,
+          i.TransitQuantity = u.TransitQuantity,
+          i.UsQuantity = u.UsQuantity
         "
       )
       
@@ -108,52 +116,57 @@ server <- function(input, output, session) {
     unique(inventory()$ItemName)  # 提取唯一的商品名
   })
   
-  ####################################################################################################################################
-  
   # 物品追踪表
-  unique_items_data <- reactive({
-    # 当 refresh_trigger 改变时触发更新
-    unique_items_data_refresh_trigger()
+  unique_items_data <- reactivePoll(
+    intervalMillis = poll_interval, 
+    session = session,       # 绑定 Shiny session，确保只在活跃时运行
     
-    dbGetQuery(con, "
-    SELECT 
-      unique_items.UniqueID, 
-      unique_items.SKU, 
-      unique_items.OrderID,
-      unique_items.ProductCost,
-      unique_items.DomesticShippingCost,
-      unique_items.Status,
-      unique_items.Defect,
-      unique_items.DefectNotes,
-      unique_items.IntlShippingMethod,
-      unique_items.IntlTracking,
-      unique_items.IntlShippingCost,
-      unique_items.PurchaseTime,
-      unique_items.DomesticEntryTime,
-      unique_items.DomesticExitTime,
-      unique_items.DomesticSoldTime,
-      unique_items.UsEntryTime,
-      unique_items.UsShippingTime,
-      unique_items.UsRelocationTime,
-      unique_items.UsSoldTime,
-      unique_items.ReturnTime,
-      unique_items.PurchaseCheck,
-      unique_items.updated_at,
-      inventory.Maker,
-      inventory.MajorType,
-      inventory.MinorType,
-      inventory.ItemName,
-      inventory.ItemImagePath
-    FROM 
-      unique_items
-    JOIN 
-      inventory 
-    ON 
-      unique_items.SKU = inventory.SKU
-    ORDER BY 
-      unique_items.updated_at DESC
-  ")
-  })
+    # **检查是否需要更新**（返回最近更新时间）
+    checkFunc = function() {
+      dbGetQuery(con, "SELECT MAX(updated_at) FROM unique_items")[[1]]
+    },
+    
+    # **获取最新数据**
+    valueFunc = function() {
+      dbGetQuery(con, "
+      SELECT 
+        unique_items.UniqueID, 
+        unique_items.SKU, 
+        unique_items.OrderID,
+        unique_items.ProductCost,
+        unique_items.DomesticShippingCost,
+        unique_items.Status,
+        unique_items.Defect,
+        unique_items.DefectNotes,
+        unique_items.IntlShippingMethod,
+        unique_items.IntlTracking,
+        unique_items.IntlShippingCost,
+        unique_items.PurchaseTime,
+        unique_items.DomesticEntryTime,
+        unique_items.DomesticExitTime,
+        unique_items.DomesticSoldTime,
+        unique_items.UsEntryTime,
+        unique_items.UsShippingTime,
+        unique_items.UsRelocationTime,
+        unique_items.ReturnTime,
+        unique_items.PurchaseCheck,
+        unique_items.updated_at,
+        inventory.Maker,
+        inventory.MajorType,
+        inventory.MinorType,
+        inventory.ItemName,
+        inventory.ItemImagePath
+      FROM 
+        unique_items
+      JOIN 
+        inventory 
+      ON 
+        unique_items.SKU = inventory.SKU
+      ORDER BY 
+        unique_items.updated_at DESC
+    ")
+    }
+  )
   
   # 加载当前已有的 makers 和 item names 的对应关系
   observe({
@@ -165,14 +178,13 @@ server <- function(input, output, session) {
     makers_items_map(makers_items)  # 更新 reactiveVal
   })
   
-  ####################################################################################################################################
-  
   # 订单表
   orders <- reactive({
+    # 当 refresh_trigger 改变时触发更新
     orders_refresh_trigger()
     dbGetQuery(con, "SELECT * FROM orders")
   })
-
+  
   ####################################################################################################################################
   
   # 物品状态历史表
@@ -193,34 +205,6 @@ server <- function(input, output, session) {
   ######   unique_items_data 表的过滤   ######
   ############################################
   
-  # 采购页过滤
-  filtered_unique_items_data_purchase <- reactive({
-    req(unique_items_data())
-    data <- unique_items_data()
-    
-    # 根据输入进行进一步过滤
-    data <- filter_unique_items_data_by_inputs(
-      data = data,
-      input = input,
-      maker_input_id = "purchase_filter-maker",
-      status_input_id = "purchase_filter-status",
-      item_name_input_id = "purchase_filter-name"
-    )
-    
-    # 统计 SKU, Status, 和 PurchaseTime 下的数量
-    data <- data %>%
-      group_by(SKU, Status, PurchaseTime) %>%
-      mutate(ItemCount = n()) %>%  # 统计数量
-      ungroup()
-    
-    # 去重：仅保留每个 SKU 和采购日期组合的第一条记录
-    data <- data %>%
-      arrange(desc(Status == "采购"), desc(updated_at)) %>%  # 按需求排序
-      distinct(SKU, Status, PurchaseTime, .keep_all = TRUE)         # 去重，保留所有列
-    
-    data
-  })
-  
   # 入库页过滤
   filtered_unique_items_data_inbound <- reactive({
     req(unique_items_data())
@@ -228,97 +212,31 @@ server <- function(input, output, session) {
     
     # 只显示本页相关状态
     data <- data %>%
-      filter(Status %in% c("采购", "国内入库"))
+      filter(Status %in% c("国内出库", "美国入库"))
     
     data <- filter_unique_items_data_by_inputs(
       data = data,
       input = input,
       maker_input_id = "inbound_filter-maker",
       status_input_id = "inbound_filter-status",
-      item_name_input_id = "inbound_filter-name",
-      purchase_date_range_id = "inbound_filter-purchase_date_range"
-    )
+      item_name_input_id = "inbound_filter-name"    
+      )
     
     # 统计 SKU, Status, Defect, 和 PurchaseTime 下的数量
     data <- data %>%
-      group_by(SKU, Status, Defect, PurchaseTime) %>%
+      group_by(SKU, Status, Defect) %>%
       mutate(ItemCount = n()) %>%  # 条件统计数量
       ungroup()
     
     # 去重：仅保留每个 SKU 和组合的第一条记录
     data <- data %>%
       arrange(desc(updated_at)) %>%  # 按需求排序
-      distinct(SKU, Status, Defect, PurchaseTime, .keep_all = TRUE)         # 去重，保留所有列
+      distinct(SKU, Status, Defect, .keep_all = TRUE)         # 去重，保留所有列
     
     data
   })
   
-  # 出库页过滤
-  filtered_unique_items_data_outbound <- reactive({
-    req(unique_items_data())
-    data <- unique_items_data()
-    
-    # 只显示本页相关状态
-    data <- data %>%
-      filter(Status %in% c("国内入库", "国内出库"), Defect != "瑕疵")
-    
-    data <- filter_unique_items_data_by_inputs(
-      data = data,
-      input = input,
-      maker_input_id = "outbound_filter-maker",
-      status_input_id = "outbound_filter-status",
-      item_name_input_id = "outbound_filter-name",
-      purchase_date_range_id = "outbound_filter-purchase_date_range"
-    )
-    
-    # 统计 SKU, Status, 和 PurchaseTime 下的数量（仅统计非瑕疵状态）
-    data <- data %>%
-      group_by(SKU, Status, PurchaseTime) %>%
-      mutate(ItemCount = n()) %>%  # 条件统计数量
-      ungroup()
-    
-    # 去重：仅保留每个 SKU 和组合的第一条记录
-    data <- data %>%
-      arrange(desc(updated_at)) %>%  # 按需求排序
-      distinct(SKU, Status, PurchaseTime, .keep_all = TRUE)         # 去重，保留所有列
-    
-    data
-  })
-  
-  # 售出-物品售出分页过滤
-  filtered_unique_items_data_sold <- reactive({
-    req(unique_items_data())
-    data <- unique_items_data()
-    
-    # 只显示本页相关状态
-    data <- data %>%
-      filter(Status %in% c("国内入库", "国内出库", "美国入库", "美国调货", "国内售出"), Defect != "瑕疵")
-
-    data <- filter_unique_items_data_by_inputs(
-      data = data,
-      input = input,
-      maker_input_id = "sold_filter-maker",
-      status_input_id = "sold_filter-status",
-      item_name_input_id = "sold_filter-name",
-      purchase_date_range_id = "sold_filter-purchase_date_range"
-    )
-    
-    # 统计 SKU, Status, 和 PurchaseTime 下的数量（仅统计非瑕疵状态）
-    data <- data %>%
-      group_by(SKU, Status, PurchaseTime) %>%
-      mutate(ItemCount = n()) %>%  # 条件统计数量
-      ungroup()
-    
-    
-    # 去重：仅保留每个 SKU 和组合的第一条记录
-    data <- data %>%
-      arrange(desc(updated_at)) %>%  # 按需求排序
-      distinct(SKU, Status, PurchaseTime, .keep_all = TRUE)         # 去重，保留所有列
-    
-    data
-  })
-  
-  # 售出-订单管理分页过滤
+  # 订单管理页订单过滤
   debounced_item_name <- debounce(
     reactive({ trimws(input[["sold-item_name"]]) }),  # 确保输入值是去除空格的
     millis = 300  # 设置防抖时间为 300 毫秒（可根据需要调整）
@@ -338,7 +256,7 @@ server <- function(input, output, session) {
     if (!is.null(input$filter_tracking_id) && input$filter_tracking_id != "") {
       data <- match_tracking_number(data, "UsTrackingNumber", input$filter_tracking_id)
     }
-
+    
     # 根据顾客姓名筛选
     if (!is.null(input$filter_customer_name) && input$filter_customer_name != "") {
       data <- data %>% filter(grepl(input$filter_customer_name, CustomerName, ignore.case = TRUE))
@@ -387,7 +305,97 @@ server <- function(input, output, session) {
     data
   })
   
-  ###
+  filtered_orders_arrived <- reactive({
+    req(orders(), unique_items_data())  # 确保订单和物品数据存在
+    
+    # 获取订单和物品数据
+    data_orders <- orders()
+    data_items <- unique_items_data()
+    
+    # 筛选订单状态为“备货”的订单
+    data_orders <- data_orders %>%
+      filter(OrderStatus == "备货")
+    
+    # 条件 1：订单内所有物品都有国际运单号
+    all_with_tracking_orders <- data_items %>%
+      group_by(OrderID) %>%
+      summarise(
+        all_with_tracking = all(!is.na(IntlTracking) & IntlTracking != "")  # 所有物品都有运单号
+      ) %>%
+      filter(all_with_tracking) %>%  # 筛选符合条件的订单
+      pull(OrderID)
+    
+    # 条件 2：订单内没有任何物品，备注有调货完成记录
+    no_items_with_transfer_note_orders <- data_orders %>%
+      filter(
+        !(OrderID %in% data_items$OrderID) &  # 订单内没有任何物品
+          grepl("【调货完成 \\d{4}-\\d{2}-\\d{2}】", OrderNotes)  # 备注包含调货完成记录
+      ) %>%
+      pull(OrderID)
+    
+    # 合并两种符合条件的订单
+    valid_order_ids <- union(all_with_tracking_orders, no_items_with_transfer_note_orders)
+    
+    # 返回筛选后的订单
+    filtered_orders <- data_orders %>%
+      filter(OrderID %in% valid_order_ids)
+    
+    return(filtered_orders)
+  })
+  
+  filtered_orders_waiting <- reactive({
+    req(orders(), unique_items_data())  # 确保订单和物品数据存在
+    
+    # 获取订单和物品数据
+    data_orders <- orders()
+    data_items <- unique_items_data()
+    
+    # 筛选订单状态为“备货”的订单
+    data_orders <- data_orders %>%
+      filter(OrderStatus == "备货")
+    
+    # 条件 1：部分物品有国际运单号，部分没有的订单
+    partial_tracking_orders <- data_items %>%
+      group_by(OrderID) %>%
+      summarise(
+        has_tracking = any(!is.na(IntlTracking) & IntlTracking != ""),  # 至少一个物品有运单号
+        no_tracking = any(is.na(IntlTracking) | IntlTracking == "")    # 至少一个物品没有运单号
+      ) %>%
+      filter(has_tracking & no_tracking) %>%  # 同时满足上述两种情况
+      pull(OrderID)  # 提取符合条件的 OrderID
+    
+    # 条件 2：所有物品都没有国际运单号，但备注中有调货操作记录的订单
+    no_tracking_with_transfer_note_orders <- data_items %>%
+      group_by(OrderID) %>%
+      summarise(
+        all_no_tracking = all(is.na(IntlTracking) | IntlTracking == "")  # 所有物品都没有运单号
+      ) %>%
+      filter(all_no_tracking) %>%
+      pull(OrderID) %>%
+      intersect(  # 交集筛选，订单备注包含指定格式的调货记录
+        data_orders %>%
+          filter(grepl("【调货完成 \\d{4}-\\d{2}-\\d{2}】", OrderNotes)) %>%  # 正则匹配
+          pull(OrderID)
+      )
+    
+    # 合并两种符合条件的订单
+    valid_order_ids <- union(partial_tracking_orders, no_tracking_with_transfer_note_orders)
+    
+    # 返回筛选后的订单
+    filtered_orders <- data_orders %>%
+      filter(OrderID %in% valid_order_ids)
+    
+    return(filtered_orders)
+  })
+  
+  filtered_orders_relocation  <- reactive({
+    req(orders())  # 确保订单和物品数据存在
+    
+    # 筛选订单状态为“调货”的订单
+    filtered_orders <- orders() %>% filter(OrderStatus == "调货")
+    
+    return(filtered_orders)
+  })
   
   # 物品管理页过滤
   filtered_unique_items_data_manage <- reactive({
@@ -400,7 +408,6 @@ server <- function(input, output, session) {
       maker_input_id = "manage_filter-maker",
       status_input_id = "manage_filter-status",
       item_name_input_id = "manage_filter-name",
-      purchase_date_range_id = "manage_filter-purchase_date_range"
     )
     
     data
@@ -418,10 +425,10 @@ server <- function(input, output, session) {
       item_name_input_id = "defect_filter-name",
       purchase_date_range_id = "defect_filter-purchase_date_range"
     )
-   
+    
     # 默认过滤条件：状态为“国内入库”且 Defect 不为“未知”
-    data <- data[!is.na(data$Defect) & data$Defect != "未知" & data$Status == "国内入库", ]
-
+    data <- data[!is.na(data$Defect) & data$Defect != "未知" & data$Status == "美国入库", ]
+    
     # 处理开关互斥逻辑
     if (isTRUE(input$show_defects_only)) {
       # 如果仅显示瑕疵品
@@ -430,7 +437,7 @@ server <- function(input, output, session) {
       # 如果仅显示无瑕品
       data <- data[data$Defect == "无瑕", ]
     }
-
+    
     data
   })
   
@@ -439,6 +446,10 @@ server <- function(input, output, session) {
     req(unique_items_data())
     data <- unique_items_data()
     
+    # # 只显示本页相关状态
+    # data <- data %>%
+    #   filter(Status %in% c("国内出库", "国内售出"), Defect != "瑕疵")
+
     data <- filter_unique_items_data_by_inputs(
       data = data,
       input = input,
@@ -446,7 +457,9 @@ server <- function(input, output, session) {
       status_input_id = "logistic_filter-status",
       item_name_input_id = "logistic_filter-name",
       sold_date_range_id = "logistic_filter-sold_date_range",
-      exit_date_range_id = "logistic_filter-exit_date_range"
+      only_show_sold_id = "logistic_filter-only_show_sold",
+      exit_date_range_id = "logistic_filter-exit_date_range",
+      only_show_exit_id = "logistic_filter-only_show_exit"
     )
     
     shipping_method <- input$intl_shipping_method
@@ -455,6 +468,9 @@ server <- function(input, output, session) {
     if (!is.null(shipping_method)) {
       data <- data %>% filter(IntlShippingMethod == shipping_method)
     }
+    
+    # 优先显示没有国际运单号的物品
+    data <- data %>% arrange(is.na(IntlTracking), IntlTracking)
     
     data
   })
@@ -495,43 +511,50 @@ server <- function(input, output, session) {
     )
   })
   
-  ###########################################################################################################################
   
-  
-  # 渲染物品追踪数据表
-  unique_items_table_purchase_selected_row <- callModule(uniqueItemsTableServer, "unique_items_table_purchase",
-                                                         column_mapping <- c(common_columns, list(
-                                                           PurchaseTime = "采购日",
-                                                           ItemCount = "数量")
-                                                         ), selection = "single", data = filtered_unique_items_data_purchase)
-  
-  unique_items_table_inbound_selected_row <- callModule(uniqueItemsTableServer, "unique_items_table_inbound",
-                                                        column_mapping <- c(common_columns, list(
-                                                          PurchaseTime = "采购日",
-                                                          DomesticEntryTime = "入库日",
-                                                          Defect = "瑕疵态",
-                                                          ItemCount = "数量")
-                                                        ), selection = "multiple", data = filtered_unique_items_data_inbound)
-  
-  unique_items_table_outbound_selected_row <- callModule(uniqueItemsTableServer, "unique_items_table_outbound", 
-                                                         column_mapping <- c(common_columns, list(
-                                                           PurchaseTime = "采购日",
-                                                           DomesticExitTime = "出库日",
-                                                           ItemCount = "数量")
-                                                         ), selection = "single", data = filtered_unique_items_data_outbound)
-  
-  unique_items_table_sold_selected_row <- callModule(uniqueItemsTableServer, "unique_items_table_sold",
-                                                     column_mapping <- c(common_columns, list(
-                                                       PurchaseTime = "采购日",
-                                                       DomesticSoldTime = "售出日",
-                                                       ItemCount = "数量")
-                                                     ), selection = "single", data = filtered_unique_items_data_sold)
   
   ####################################################################################################################################
   
+  
+  
+  # 渲染物品追踪数据表
+  unique_items_table_inbound_selected_row <- callModule(uniqueItemsTableServer, "unique_items_table_inbound",
+                                                        column_mapping <- c(common_columns, list(
+                                                          ItemCount = "数量")
+                                                        ), selection = "multiple", data = filtered_unique_items_data_inbound)
+  
+
+  # 订单管理分页订单表
+  selected_order_row <- callModule(orderTableServer, "orders_table_module",
+                                   column_mapping = orders_table_columns,
+                                   data = filtered_orders,  # 数据源
+                                   selection = "single" # 单选模式
+  )
+  
+  selected_orders_table_arrived_row <- callModule(orderTableServer, "orders_table_arrived",
+                                                  column_mapping = orders_table_columns,
+                                                  options = modifyList(table_default_options, list(scrollY = "650px")),
+                                                  data = filtered_orders_arrived,  # 数据源
+                                                  selection = "single" # 单选模式
+  )
+  
+  selected_orders_table_waiting_row <- callModule(orderTableServer, "orders_table_waiting",
+                                                  column_mapping = orders_table_columns,
+                                                  options = modifyList(table_default_options, list(scrollY = "650px")),
+                                                  data = filtered_orders_waiting,  # 数据源
+                                                  selection = "single" # 单选模式
+  )
+  
+  selected_orders_table_relocation_row <- callModule(orderTableServer, "orders_relocation",
+                                                  column_mapping = orders_table_columns,
+                                                  options = modifyList(table_default_options, list(scrollY = "650px")),
+                                                  data = filtered_orders_relocation,  # 数据源
+                                                  selection = "single" # 单选模式
+  )
+  
+  # 物品管理分页物品表
   unique_items_table_manage_selected_row <- callModule(uniqueItemsTableServer, "unique_items_table_manage",
                                                        column_mapping <- c(common_columns, list(
-                                                         DomesticShippingCost = "国内运费",
                                                          PurchaseTime = "采购日",
                                                          DomesticEntryTime = "入库日",
                                                          DomesticExitTime = "出库日",
@@ -543,15 +566,16 @@ server <- function(input, output, session) {
                                                        ), selection = "multiple", data = filtered_unique_items_data_manage,
                                                        option = modifyList(table_default_options, list(scrollY = "730px", searching = TRUE)))
   
+  # 瑕疵品管理分页物品表
   unique_items_table_defect_selected_row <- callModule(uniqueItemsTableServer, "unique_items_table_defect",
-                                                       column_mapping <- c(common_columns, list(
-                                                         PurchaseTime = "采购日",
-                                                         DomesticEntryTime = "入库日",
+                                                       column_mapping = c(common_columns, list(
+                                                         UsEntryTime = "美入库日",
                                                          Defect = "瑕疵态",
                                                          DefectNotes = "瑕疵备注")
                                                        ), selection = "multiple", data = filtered_unique_items_data_defect,
                                                        option = modifyList(table_default_options, list(scrollY = "730px", searching = TRUE)))
   
+  # 国际物流管理分页物品表
   unique_items_table_logistics_selected_row <- callModule(uniqueItemsTableServer, "unique_items_table_logistics",
                                                           column_mapping = c(common_columns, list(
                                                             IntlShippingMethod = "国际运输",
@@ -561,8 +585,14 @@ server <- function(input, output, session) {
                                                             IntlTracking = "国际运单"
                                                           )), selection = "multiple",
                                                           data = filtered_unique_items_data_logistics,
-                                                          option = modifyList(table_default_options, list(scrollY = "730px", searching = TRUE)))
+                                                          option = modifyList(table_default_options, list(scrollY = "730px", 
+                                                                                                          searching = FALSE, 
+                                                                                                          paging = TRUE,
+                                                                                                          pageLength = 30,
+                                                                                                          lengthMenu = c(30, 100, 200),
+                                                                                                          dom = 'lftip')))
   
+  # 查询分页库存表
   output$filtered_inventory_table_query <- renderDT({  # input$filtered_inventory_table_query_rows_selected
     column_mapping <- list(
       SKU = "条形码",
@@ -572,6 +602,9 @@ server <- function(input, output, session) {
       MajorType = "大类",
       MinorType = "小类",
       Quantity = "总库存数",
+      DomesticQuantity = "国内库存数",
+      TransitQuantity = "在途库存数",
+      UsQuantity = "美国库存数",
       ProductCost = "平均成本",
       ShippingCost = "平均运费"
     )
@@ -583,418 +616,385 @@ server <- function(input, output, session) {
     )$datatable
   })
   
+  # 下载分页物品表
   unique_items_table_download_selected_row <- callModule(uniqueItemsTableServer, "unique_items_table_download",
                                                          column_mapping <- c(common_columns, list(
                                                            Defect = "瑕疵态",
                                                            PurchaseTime = "采购日",
-                                                           DomesticEntryTime = "入库日",
-                                                           DomesticExitTime = "出库日",
-                                                           DomesticSoldTime = "售出日")
+                                                           UsEntryTime = "美入库日",                                                           
+                                                           UsRelocationTime = "美调货日",
+                                                           UsShippingTime = "美发货日")
                                                          ), data = filtered_unique_items_data_download)
   
-  # 订单管理分页订单表
-  selected_order_row <- callModule(orderTableServer, "orders_table_module",
-                                   column_mapping = list(
-                                     OrderID = "订单号",
-                                     OrderImagePath = "订单图",
-                                     CustomerName = "姓名",
-                                     CustomerNetName = "网名",
-                                     Platform = "平台",
-                                     UsTrackingNumber = "运单号",
-                                     LabelStatus = "运单PDF",
-                                     OrderStatus = "状态",
-                                     OrderNotes = "备注",
-                                     created_at = "创建时间"
-                                   ),
-                                   data = filtered_orders,  # 数据源
-                                   selection = "single" # 单选模式
-  )
-  
+
   
   
   ####################################################################################################################################
   
- 
+  
+  
   ################################################################
   ##                                                            ##
-  ## 采购分页                                                   ##
+  ## 协作分页                                                   ##
   ##                                                            ##
   ################################################################
+  
+  # 缓存请求数据
+  requests_data <- reactiveVal(data.frame())
+  
+  # 定期检查采购请求数据库的最新数据
+  poll_requests <- reactivePoll(
+    intervalMillis = poll_interval,
+    session = session,
+    checkFunc = function() {
+      # 查询最新更新时间
+      last_updated <- dbGetQuery(con, "SELECT MAX(UpdatedAt) AS last_updated FROM requests")$last_updated[1]
+      if (is.null(last_updated)) {
+        Sys.time()  # 如果无数据，返回当前时间
+      } else {
+        last_updated
+      }
+    },
+    valueFunc = function() {
+      result <- dbGetQuery(con, "SELECT * FROM requests")
+      if (nrow(result) == 0) { data.frame() } else { result }
+    }
+  )
+  
+  # 加载数据
+  observeEvent(poll_requests(), {
+    requests <- poll_requests()
+    requests_data(requests)
+  })
+  
+  observe({
+    requests <- requests_data()
+    
+    refresh_board(requests, output)
+    
+    # 渲染留言内容并绑定按钮事件
+    lapply(requests$RequestID, function(request_id) {
+      output[[paste0("remarks_", request_id)]] <- renderRemarks(request_id, requests)
+      bind_buttons(request_id, requests, input, output, session, con)  # 按 RequestID 动态绑定按钮
+    })
+  })
+  
+  # SKU 和物品名输入互斥逻辑
+  observeEvent(input$search_sku, {
+    # 如果 SKU 搜索框有值，则清空物品名称搜索框
+    if (input$search_sku != "") {
+      updateTextInput(session, "search_name", value = "")  # 清空物品名称搜索框
+    }
+  })
+  
+  # SKU 和物品名输入互斥逻辑
+  observeEvent(input$search_name, {
+    # 如果物品名称搜索框有值，则清空 SKU 搜索框
+    if (input$search_name != "") {
+      updateTextInput(session, "search_sku", value = "")  # 清空 SKU 搜索框
+    }
+  })
+  
+  # SKU 和物品名称搜索预览
+  observeEvent(c(input$search_sku, input$search_name), {
+    # 如果两个输入框都为空，则清空预览
+    if (input$search_sku == "" && input$search_name == "") {
+      output$item_preview <- renderUI({ NULL })
+      return()  # 结束逻辑
+    }
+    
+    req(input$search_sku != "" | input$search_name != "")  # 确保至少一个搜索条件不为空
+    
+    # 获取清理后的输入值
+    search_sku <- trimws(input$search_sku)
+    search_name <- trimws(input$search_name)
+    
+    # 使用 unique_items_data() 进行过滤和统计
+    result <- unique_items_data() %>%
+      filter(
+        (SKU == search_sku & search_sku != "") |  # SKU 精准匹配
+          (grepl(search_name, ItemName, ignore.case = TRUE) & search_name != "")  # 名称模糊匹配
+      ) %>%
+      group_by(SKU, ItemName, ItemImagePath) %>%
+      summarise(
+        DomesticStock = sum(Status == "国内入库", na.rm = TRUE),  # 国内库存
+        InTransitStock = sum(Status == "国内出库", na.rm = TRUE),  # 在途库存
+        UsStock = sum(Status == "美国入库", na.rm = TRUE),  # 美国库存
+        .groups = "drop"
+      )
+    
+    # 动态更新预览界面
+    if (nrow(result) > 0) {
+      output$item_preview <- renderUI({
+        div(
+          style = "max-height: 300px; overflow-y: auto; padding: 10px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #f9f9f9;",
+          lapply(1:nrow(result), function(i) {
+            item <- result[i, ]
+            img_path <- ifelse(
+              is.na(item$ItemImagePath),
+              placeholder_150px_path,  # 占位符路径
+              paste0(host_url, "/images/", basename(item$ItemImagePath))  # 构建完整路径
+            )
+            div(
+              style = "margin-bottom: 15px; padding: 10px; border-bottom: 1px solid #ccc;",
+              tags$img(src = img_path, height = "150px", style = "display: block; margin: auto;"),
+              tags$h5(item$ItemName, style = "text-align: center; margin-top: 10px;"),
+              tags$h5(item$SKU, style = "text-align: center; margin-top: 10px;"),
+              div(
+                style = "text-align: center; font-size: 12px;",
+                tags$span(paste("国内库存:", item$DomesticStock), style = "margin-right: 10px;"),
+                tags$span(paste("在途库存:", item$InTransitStock), style = "margin-right: 10px;"),
+                tags$span(paste("美国库存:", item$UsStock))
+              )
+            )
+          })
+        )
+      })
+    } else {
+      output$item_preview <- renderUI({
+        div(tags$p("未找到匹配的物品", style = "color: red; text-align: center;"))
+      })
+    }
+  })
+  
+  # 库存品请求按钮
+  observeEvent(input$add_request, {
+    req(input$request_quantity > 0)  # 确保输入合法
+    
+    # 获取用户输入
+    search_sku <- trimws(input$search_sku)
+    search_name <- trimws(input$search_name)
+    
+    # 根据当前页面的类型确定 RequestType
+    current_tab <- input$collaboration_tabs
+    request_type <- switch(
+      current_tab,
+      "采购请求" = "采购",
+      "出库请求" = "出库",
+      return()  # 不匹配任何已知分页时，直接退出
+    )
+    
+    # 检索数据并插入到数据库
+    filtered_data <- unique_items_data() %>%
+      filter(
+        (SKU == search_sku & search_sku != "") |  # SKU 精准匹配
+          (grepl(search_name, ItemName, ignore.case = TRUE) & search_name != "")  # 名称模糊匹配
+      ) %>%
+      distinct(SKU, Maker, ItemName, ItemImagePath)  # 去重
+    
+    tryCatch({
+      # 主逻辑
+      if (nrow(filtered_data) == 1) {
+        request_id <- uuid::UUIDgenerate()
+        
+        item_image_path <- ifelse(is.na(filtered_data$ItemImagePath[1]), placeholder_150px_path, filtered_data$ItemImagePath[1])
+        item_description <- ifelse(is.na(filtered_data$ItemName[1]), "未知", filtered_data$ItemName[1])
+        
+        # 获取用户输入的留言，保持空值为 NULL
+        raw_remark <- input$request_remark
+        formatted_remark <- if (raw_remark == "" || is.null(raw_remark)) NA_character_ else {
+          remark_prefix <- if (system_type == "cn") "[京]" else "[圳]"  # 根据系统类型添加前缀
+          paste0(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), ": ", remark_prefix, " ", raw_remark)
+        }
+        
+        dbExecute(con, 
+                  "INSERT INTO requests (RequestID, SKU, Maker, ItemImagePath, ItemDescription, Quantity, RequestStatus, Remarks, RequestType) 
+         VALUES (?, ?, ?, ?, ?, ?, '待处理', ?, ?)", 
+                  params = list(request_id, filtered_data$SKU, filtered_data$Maker, item_image_path, item_description, input$request_quantity, formatted_remark, request_type))
+        
+        bind_buttons(request_id, requests_data(), input, output, session, con)
+        
+        updateTextInput(session, "search_sku", value = "")
+        updateTextInput(session, "search_name", value = "")
+        updateNumericInput(session, "request_quantity", value = 1)
+        
+        showNotification("请求已成功创建", type = "message")
+      } else if (nrow(filtered_data) > 1) {
+        showNotification("搜索结果不唯一，请更精确地搜索 SKU 或物品名称", type = "error")
+      } else {
+        showNotification("未找到匹配的物品，请检查搜索条件", type = "error")
+      }
+    }, error = function(e) {
+      # 捕获错误并打印详细信息
+      showNotification(e, type = "error")
+    })
+  })
+  
+  # 初始化图片上传模块
+  image_requests <- imageModuleServer("image_requests")
+  
+  # 新商品采购请求按钮
+  observeEvent(input$submit_custom_request, {
+    # 确保必要字段已填写
+    req(input$custom_quantity > 0)
+    
+    # 获取用户输入
+    custom_description <- trimws(input$custom_description)
+    custom_quantity <- input$custom_quantity
+    
+    # 使用图片上传模块的返回数据
+    custom_image_path <- process_image_upload(
+      sku = "New-Request",  # 自定义物品没有 SKU，可以设置为固定值或动态生成
+      file_data = image_requests$uploaded_file(),
+      pasted_data = image_requests$pasted_file()
+    )
+    
+    # 检查图片路径是否有效
+    req(!is.null(custom_image_path) && !is.na(custom_image_path))
+    
+    # 生成唯一 RequestID
+    request_id <- uuid::UUIDgenerate()
+    
+    # 获取用户输入的留言，保持空值为 NULL
+    raw_remark <- input$custom_remark
+    formatted_remark <- if (raw_remark == "" || is.null(raw_remark)) NA_character_ else {
+      remark_prefix <- if (system_type == "cn") "[京]" else "[圳]"  # 根据系统类型添加前缀
+      paste0(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), ": ", remark_prefix, " ", raw_remark)
+    }
+    
+    # 将数据插入到数据库
+    dbExecute(con, 
+              "INSERT INTO requests (RequestID, SKU, Maker, ItemImagePath, ItemDescription, Quantity, RequestStatus, Remarks, RequestType) 
+             VALUES (?, ?, '待定', ?, ?, ?, '待处理', ?, '采购')", 
+              params = list(request_id, "New-Request", custom_image_path, custom_description, custom_quantity, formatted_remark))
+    
+    bind_buttons(request_id, requests_data(), input, output, session, con) #绑定按钮逻辑
+    
+    # 清空输入字段
+    updateTextInput(session, "custom_description", value = "")
+    updateNumericInput(session, "custom_quantity", value = 1)
+    image_requests$reset()
+    showNotification("自定义请求已成功提交", type = "message")
+  })
+  
+  # 出库标签页要禁用新物品请求
+  observeEvent(input$collaboration_tabs, {
+    current_tab <- input$collaboration_tabs
+    
+    if (current_tab == "出库请求") {
+      # 禁用与新商品请求相关的控件
+      shinyjs::disable("custom_description")
+      shinyjs::disable("custom_quantity")
+      shinyjs::disable("submit_custom_request")
+    } else if (current_tab == "采购请求") {
+      # 启用与新商品请求相关的控件
+      shinyjs::enable("custom_description")
+      shinyjs::enable("custom_quantity")
+      shinyjs::enable("submit_custom_request")
+    }
+  })
+  
+  # 点击请求图片看大图
+  observeEvent(input$view_request_image, {
+    showModal(modalDialog(
+      title = "请求物品图片",
+      div(
+        style = "overflow: auto; max-height: 700px; text-align: center;",        
+        tags$img(src = input$view_request_image, style = "max-width: 100%; height: auto; display: inline-block;")
+      ),
+      size = "l",
+      easyClose = TRUE,
+      footer = NULL
+    ))
+  })
+  
+  
+  
+  ################################################################
+  ##                                                            ##
+  ## 入库分页                                                   ##
+  ##                                                            ##
+  ################################################################
+
+  # 记录当前视图模式，初始为表格模式
+  view_mode <- reactiveVal("table_mode")
+  
+  # 视图模式状态
+  observeEvent(input$toggle_view, {
+    # 切换视图
+    shinyjs::toggle(id = "table_mode")
+    shinyjs::toggle(id = "image_mode")
+    
+    # 根据当前模式更新 view_mode 变量
+    if (view_mode() == "table_mode") {
+      view_mode("image_mode")
+      updateActionButton(session, "toggle_view", label = "切换至：图表模式")
+    } else {
+      view_mode("table_mode")
+      updateActionButton(session, "toggle_view", label = "切换至：大图模式")
+    }
+  })
+  
+  # 监听标签页切换事件
+  observeEvent(input$inventory_us, {
+    if (input$inventory_us == "入库") {
+      runjs("document.getElementById('inbound_sku').focus();")
+    }
+  })
   
   # 物品表过滤模块
   itemFilterServer(
-    id = "purchase_filter",
+    id = "inbound_filter",
     makers_items_map = makers_items_map
   )
   
-  # 供应商模块
-  supplierModuleServer(input, output, session, con, maker_list)
-  
-  # 物品大小类模块
-  typeModuleServer("type_module", con, item_type_data)
-  
-  
-  ### SKU冲撞检查
-  
-  # 合并依赖变量
-  combined_inputs <- reactive({
-    list(
-      major_type = input[["type_module-new_major_type"]],
-      minor_type = input[["type_module-new_minor_type"]],
-      new_name = input[["purchase-item_name"]],
-      new_maker = input$new_maker
-    )
-  })
-  
-  # 使用 debounce 延迟触发，避免短时间多次调用
-  debounced_inputs <- debounce(combined_inputs, millis = 300)
-  
-  observeEvent(debounced_inputs(), {
-    inputs <- debounced_inputs()
+  # 监听 SKU 输入
+  observeEvent(input$inbound_sku, {
+    req(input$inbound_sku)
     
-    # 检查 SKU 的来源
-    is_from_table <- !is.null(unique_items_table_purchase_selected_row()) && 
-      length(unique_items_table_purchase_selected_row()) > 0
-    
-    # 判断是否需要清空 SKU
-    if (is.null(inputs$new_maker) || inputs$new_maker == "" || 
-        is.null(inputs$new_name) || inputs$new_name == "") {
-      updateTextInput(session, "new_sku", value = "")  # 清空 SKU
-      return()
-    }
-    
-    # Dynamically generate SKU
-    sku <- generate_sku(
-      item_type_data = item_type_data(),
-      major_type = inputs$major_type,
-      minor_type = inputs$minor_type,
-      item_name = input[["purchase-item_name"]],
-      maker = inputs$new_maker
+    # 调用 handleSkuInput 并获取待入库数量
+    pending_quantity <- handleSkuInput(
+      sku_input = input$inbound_sku,
+      output_name = "inbound_item_info",
+      count_label = "待入库数",
+      count_field = "PendingQuantity",
+      con = con,
+      output = output,
+      placeholder_path = placeholder_300px_path,
+      host_url = host_url,
+      image_mode = TRUE
     )
     
-    if (is_from_table) {
-      # 如果 SKU 来源于表格，直接更新输入字段
-      updateTextInput(session, "new_sku", value = sku)
-      showNotification("SKU 已生成（来源于表格选择）", type = "message")
-    } else {
-      # 如果 SKU 不是来源于表格，检查是否冲突
-      existing_sku <- inventory() %>% filter(SKU == sku)
-      
-      if (nrow(existing_sku) > 0) {
-        # 如果 SKU 冲突，弹出模态窗口提醒用户
-        showModal(modalDialog(
-          title = "SKU 冲突",
-          paste0("生成的 SKU '", sku, "' 已存在于库存中，请重新生成 SKU！"),
-          easyClose = TRUE,
-          footer = modalButton("关闭")
-        ))
-        
-        # 清空 SKU 输入字段
-        updateTextInput(session, "new_sku", value = "")
-      } else {
-        # 如果 SKU 不冲突，更新输入字段
-        updateTextInput(session, "new_sku", value = sku)
-        showNotification("SKU 生成成功！", type = "message")
-      }
-    }
-  })
-  
-  autocompleteInputServer("purchase", get_suggestions = item_names)  # 返回商品名列表
-  
-  # 采购商品图片处理模块
-  image_purchase <- imageModuleServer("image_purchase")
-  
-  # 采购商品添加表（临时）
-  added_items <- reactiveVal(create_empty_inventory())
-  
-  # Render added items table
-  output$added_items_table <- renderDT({
-    column_mapping <- list(
-      SKU = "条形码",
-      ItemName = "商品名",
-      ItemImagePath = "商品图",
-      Maker = "供应商",
-      MajorType = "大类",
-      MinorType = "小类",
-      Quantity = "入库数量",
-      ProductCost = "采购单价"
-    )
-    
-    render_table_with_images(
-      data = added_items(),
-      column_mapping = column_mapping,
-      selection = "multiple",
-      image_column = "ItemImagePath",
-      options = list(fixedHeader = TRUE,  # 启用表头固定
-                     dom = 't',  # 隐藏搜索框和分页等控件
-                     paging = FALSE,  # 禁止分页
-                     searching = FALSE  # 禁止搜索
+    # 如果启用自动入库功能，直接执行入库逻辑
+    if (input$auto_inbound) {
+      req(input$inbound_sku)
+      item_name <- handleOperation(
+        unique_items_data(),
+        operation_name = "入库", 
+        sku_field = "inbound_sku",
+        output_name = "inbound_item_info",
+        query_status = "国内出库",
+        update_status_value = "美国入库",
+        count_label = "待入库数", 
+        count_field = "PendingQuantity", 
+        refresh_trigger = unique_items_data_refresh_trigger,      
+        con,                  
+        input, output, session
       )
-    )$datatable
-  })
-  
-  # Handle add item button click
-  observeEvent(input$add_btn, {
-    # 验证输入
-    if (is.null(input[["purchase-item_name"]]) || input[["purchase-item_name"]] == "") {
-      showNotification("请填写正确商品名称！", type = "error")
-      return()
-    }
-    if (is.null(input$new_quantity) || input$new_quantity <= 0) {
-      showNotification("请填写正确商品数量！", type = "error")
-      return()
-    }
-    if (is.null(input$new_product_cost) || input$new_product_cost < 0 || input$new_product_cost > 999) {
-      showNotification("请填写正确商品单价！", type = "error")
-      return()
-    }
-    if (is.null(input$new_sku) || input$new_sku == "") {
-      showNotification("请确保SKU正常显示！", type = "error")
-      return()
-    }
-    
-    # 检查是否存在该 SKU 的库存记录
-    inventory_item <- tryCatch({
-      dbGetQuery(con, "SELECT ItemImagePath FROM inventory WHERE SKU = ?", params = list(input$new_sku))
-    }, error = function(e) {
-      showNotification("检查库存时发生错误！", type = "error")
-      return(data.frame())
-    })
-    
-    existing_inventory_path <- if (nrow(inventory_item) > 0) inventory_item$ItemImagePath[1] else NULL
-    
-    # 上传或粘贴图片处理
-    new_image_path <- process_image_upload(
-      sku = input$new_sku,
-      file_data = image_purchase$uploaded_file(),
-      pasted_data = image_purchase$pasted_file(),
-      inventory_path = existing_inventory_path
-    )
-    
-    # 添加或更新记录
-    existing_items <- added_items()
-    existing_skus <- existing_items$SKU
-    if (input$new_sku %in% existing_skus) {
-      sku_index <- which(existing_skus == input$new_sku)
-      current_image_path <- existing_items$ItemImagePath[sku_index]
-      final_image_path <- if (!is.na(new_image_path) && new_image_path != "") {
-        new_image_path
-      } else {
-        current_image_path
-      }
       
-      existing_items[sku_index, "SKU"] <- input$new_sku
-      existing_items[sku_index, "Maker"] <- input$new_maker
-      existing_items[sku_index, "MajorType"] <- input[["type_module-new_major_type"]]
-      existing_items[sku_index, "MinorType"] <- input[["type_module-new_minor_type"]]
-      existing_items[sku_index, "ItemName"] <- input[["purchase-item_name"]]
-      existing_items[sku_index, "Quantity"] <- input$new_quantity
-      existing_items[sku_index, "ProductCost"] <- round(input$new_product_cost, 2)
-      existing_items[sku_index, "ItemImagePath"] <- as.character(final_image_path)
-      
-      added_items(existing_items)
-      
-      showNotification(paste("SKU 已更新:", input$new_sku, "已覆盖旧记录"), type = "message")
-    } else {
-      # 添加新记录
-      new_item <- data.frame(
-        SKU = input$new_sku,
-        Maker = input$new_maker,
-        MajorType = input[["type_module-new_major_type"]],
-        MinorType = input[["type_module-new_minor_type"]],
-        ItemName = input[["purchase-item_name"]],
-        Quantity = input$new_quantity,
-        ProductCost = round(input$new_product_cost, 2),
-        ItemImagePath = new_image_path,
-        stringsAsFactors = FALSE
-      )
-      added_items(bind_rows(existing_items, new_item))
-      showNotification(paste("SKU 已添加:", input$new_sku, "商品名:", input[["purchase-item_name"]]), type = "message")
-    }
-    
-    # 重置
-    image_purchase$reset()
-  })
-  
-  # 动态更新按钮文本和图标
-  output$add_update_button_ui <- renderUI({
-    # 检查SKU是否存在于added_items()
-    sku_input <- input$new_sku
-    if (is.null(sku_input) || sku_input == "") {
-      label <- "添加" # 默认显示“添加”
-      icon_type <- "plus" # 默认图标为“添加”图标
-    } else {
-      sku_exists <- sku_input %in% added_items()$SKU
-      if (sku_exists) {
-        label <- "更新" # SKU已存在时显示“更新”
-        icon_type <- "edit" # 图标显示为“编辑”
-      } else {
-        label <- "添加" # SKU不存在时显示“添加”
-        icon_type <- "plus" # 图标显示为“添加”
-      }
-    }
-    
-    # 创建动态按钮
-    actionButton("add_btn", label, width = "100%", 
-                 icon = icon(icon_type), 
-                 style = "background-color: #006400; color: white;")
-  })
-  
-  # Confirm button: Update database and handle images
-  observeEvent(input$confirm_btn, {
-    tryCatch({
-      if (nrow(added_items()) == 0) {
-        showNotification("请先录入至少一个商品!", type = "error")
-        return()
-      }
-      
-      added_items_df <- added_items()
-      
-      # Retrieve total package shipping cost from the UI
-      total_shipping_cost <- input$new_shipping_cost
-      if (is.null(total_shipping_cost) || total_shipping_cost <= 0) {
-        total_shipping_cost <- 0  # Default to 0 if invalid
-      }
-      
-      unit_shipping_cost <- total_shipping_cost / sum(added_items_df$Quantity)
-      
-      for (i in 1:nrow(added_items_df)) {
-        add_new_inventory_record(
-          con = con,
-          sku = added_items_df$SKU[i],
-          maker = added_items_df$Maker[i],
-          major_type = added_items_df$MajorType[i],
-          minor_type = added_items_df$MinorType[i],
-          item_name = added_items_df$ItemName[i],
-          quantity = 0, # 采购初始库存为 0 
-          image_path = added_items_df$ItemImagePath[i]
-        )
-      }
-      
-      # 更新数据并触发 UI 刷新
-      inventory_refresh_trigger(!inventory_refresh_trigger())
-      
-      # 同时添加信息到 unique_items 表中
-      purchase_date <- format(as.Date(input$purchase_date), "%Y-%m-%d")
-      
-      batch_data <- do.call(rbind, lapply(1:nrow(added_items_df), function(i) {
-        sku <- added_items_df$SKU[i]
-        quantity <- added_items_df$Quantity[i]
-        product_cost <- added_items_df$ProductCost[i]
-        
-        # Create rows for each quantity
-        t(replicate(quantity, c(
-          uuid::UUIDgenerate(),
-          as.character(sku),
-          as.numeric(product_cost),
-          as.numeric(unit_shipping_cost),
-          "采购",
-          "未知",
-          purchase_date
-        )))
-      }))
-      
-      # Validate data
-      if (is.null(batch_data) || nrow(batch_data) == 0) {
-        showNotification("采购数据无效，请检查输入！", type = "error")
-        return()
-      }
-      
-      # Convert to data frame
-      batch_data <- as.data.frame(batch_data, stringsAsFactors = FALSE)
-      
-      # Insert into database
-      dbBegin(con)
-      tryCatch({
-        for (i in 1:nrow(batch_data)) {
-          dbExecute(con, "INSERT INTO unique_items (UniqueID, SKU, ProductCost, DomesticShippingCost, Status, Defect, PurchaseTime) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    unname(as.vector(batch_data[i, ])))
+      if (!is.null(item_name) && item_name != "") {
+        if (input$speak_item_name) {  # 只有勾选“念出商品名”才朗读
+          js_code <- sprintf('
+            var msg = new SpeechSynthesisUtterance("%s");
+            msg.lang = "zh-CN";
+            window.speechSynthesis.speak(msg);
+          ', item_name, nchar(item_name))
+          
+          shinyjs::runjs(js_code)  # 运行 JavaScript 语音朗读
+        } else {
+          runjs("playInboundSuccessSound()")  # 播放成功音效
         }
-        dbCommit(con)
-        showNotification("所有采购货物已成功登记！", type = "message")
-      }, error = function(e) {
-        dbRollback(con)
-        showNotification(paste("采购登记失败:", e$message), type = "error")
-      })
+      } else {
+        runjs("playInboundErrorSound()")  # 播放失败音效
+        return()
+      }
       
-      unique_items_data_refresh_trigger(!unique_items_data_refresh_trigger())
-      
-      # Clear added items and reset input fields
-      updateNumericInput(session, "new_quantity", value = 0)  # 恢复数量默认值
-      updateNumericInput(session, "new_product_cost", value = 0)  # 恢复单价默认值
-      updateNumericInput(session, "new_shipping_cost", value = 0)  # 恢复运费默认值
-      updateTextInput(session, "purchase-item_name", value = "")
-      image_purchase$reset() # 重置图片
-      
-      added_items(create_empty_inventory()) #清空添加表
-      
-    }, error = function(e) {
-      showNotification(paste("发生错误:", e$message), type = "error")
-    })
-  })
-  
-  # 监听采购页选中items_table
-  observeEvent(unique_items_table_purchase_selected_row(), {
-    if (!is.null(unique_items_table_purchase_selected_row()) && length(unique_items_table_purchase_selected_row()) > 0) {
-      selected_data <- filtered_unique_items_data_purchase()[unique_items_table_purchase_selected_row(), ]
-      
-      # showNotification(paste("Selected MajorType:", selected_data$MajorType))
-      # showNotification(paste("Selected MinorType:", selected_data$MinorType))
-      
-      # Update input fields in the sidebar
-      updateSelectInput(session, "new_maker", selected = selected_data$Maker)
-      updateSelectInput(session, "type_module-new_major_type", selected = selected_data$MajorType)
-      shinyjs::delay(100, {  # 延迟 100 毫秒
-        updateSelectInput(session, "type_module-new_minor_type", selected = selected_data$MinorType)
-      })
-      updateTextInput(session, "purchase-item_name", value = selected_data$ItemName)
-      updateNumericInput(session, "new_quantity", value = 0)
-      updateNumericInput(session, "new_product_cost", value = selected_data$ProductCost) 
-      updateNumericInput(session, "new_shipping_cost", value = 0)
-    }
-  })
-  
-  # 监听采购页选中added_items_table 用来更改添加数据
-  observeEvent(input$added_items_table_rows_selected, {
-    selected_row <- input$added_items_table_rows_selected
-    
-    if (length(selected_row) > 0) {
-      # 仅处理最后一个选择的行
-      last_selected <- tail(selected_row, 1) # 获取最后一个选择的行号
-      selected_data <- added_items()[last_selected, ] # 提取最后一个选择的数据
-      
-      # 更新侧边栏的输入字段
-      updateSelectInput(session, "new_maker", selected = selected_data$Maker)
-      updateSelectInput(session, "type_module-new_major_type", selected = selected_data$MajorType)
-      shinyjs::delay(100, {  # 延迟 100 毫秒
-        updateSelectInput(session, "type_module-new_minor_type", selected = selected_data$MinorType)
-      })
-      updateTextInput(session, "purchase-item_name", value = selected_data$ItemName)
-      updateNumericInput(session, "new_quantity", value = selected_data$Quantity)
-      updateNumericInput(session, "new_product_cost", value = selected_data$ProductCost)
-    }
-  })
-  
-  # 显示总采购开销（含运费）
-  output$total_cost <- renderText({
-    total <- sum(added_items()$Quantity * added_items()$ProductCost) + input$new_shipping_cost
-    paste0("请核实本次采购总金额: ¥", format(total, big.mark = ",", scientific = FALSE),
-           "（其中包含运费: ¥", input$new_shipping_cost, ")")
-  })
-  
-  # 监听删除按钮点击事件，弹出确认框
-  observeEvent(input$delete_btn, {
-    selected_row <- input$added_items_table_rows_selected
-    
-    # 如果没有选中行，提示用户
-    if (length(selected_row) == 0) {
-      showNotification("请选择要删除的记录", type = "error")
-      return()
-    }
-    
-    # 显示确认框
-    showModal(
-      modalDialog(
-        title = HTML("<strong style='color: red;'>确认删除</strong>"),
-        HTML(paste0(
-          "<p>您确定要删除选中的 <strong>", length(selected_row), "</strong> 条记录吗？</p>",
+      # 清空 SKU 输入框
+      updateTextInput(session, "inbound_sku", value = "")
+    } else {
+      # 未启用自动入库时更新待入库数量最大值
+      if (!is.null(pending_quantity) && pending_quantity > 0) {
+        updateNumericInput(session, "inbound_quantity", max = pending_quantity, value = 1)
+        showNotification(paste0("已更新待入库数量最大值为 ", pending_quantity, "！"), type = "message")
+      } else {
+        updateNumericInput(session, "inbound_quantity", max = 0, value = 0)
