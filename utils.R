@@ -2336,7 +2336,7 @@ bind_buttons <- function(request_id, requests, input, output, session, con) {
   }, ignoreInit = TRUE)
   
   observeEvent(input[[paste0("done_paid_cancel_", request_id)]], {
-    dbExecute(con, "UPDATE requests SET RequestType = '安排' WHERE RequestID = ?", params = list(request_id))
+    dbExecute(con, "UPDATE requests SET RequestType = '安排', RequestStatus = '待处理' WHERE RequestID = ?", params = list(request_id))
   }, ignoreInit = TRUE)
   
   observeEvent(input[[paste0("complete_task_", request_id)]], {
