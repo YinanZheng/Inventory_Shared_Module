@@ -2202,14 +2202,26 @@ render_request_board <- function(requests, output_id, output) {
             
             # 状态按钮
             tags$div(
-              style = "width: 100%; display: flex; justify-content: space-between; margin-top: 5px;",
-              actionButton(paste0("mark_urgent_", request_id), "加急", class = "btn-danger", style = "width: 30%; height: 45px;"),
+              style = "width: 100%; display: flex; gap: 5px; margin-top: 5px;",
               
-              if (output_id == "purchase_request_board") actionButton(paste0("provider_arranged_", request_id), "已安排", class = "btn-primary", style = "width: 30%; height: 45px;"),
-              if (output_id == "provider_arranged_board") actionButton(paste0("done_paid_", request_id), "制作完毕", class = "btn-primary", style = "width: 30%; height: 45px;"),
-              if (output_id %in% c("done_paid_board", "outbound_request_board")) actionButton(paste0("complete_task_", request_id), "请求完成", class = "btn-primary", style = "width: 30%; height: 45px;"),
+              actionButton(paste0("mark_urgent_", request_id), "加急", class = "btn-danger", style = "flex-grow: 1; height: 45px;"),
               
-              actionButton(paste0("delete_request_", request_id), "删除", class = "btn-warning", style = "width: 30%; height: 45px;")
+              if (output_id == "purchase_request_board") {
+                tagList(
+                  actionButton(paste0("provider_arranged_", request_id), "安排", class = "btn-primary", style = "flex-grow: 1; height: 45px;"),
+                )
+              } else if (output_id == "provider_arranged_board") {
+                tagList(
+                  actionButton(paste0("done_paid_", request_id), "完成", class = "btn-primary", style = "flex-grow: 1; height: 45px;"),
+                  actionButton(paste0("done_paid_cancel_", request_id), "撤回", class = "btn-warning", style = "flex-grow: 1; height: 45px;")
+                )
+              } else if (output_id == "done_paid_board") {
+                actionButton(paste0("complete_task_cancel_", request_id), "撤回", class = "btn-warning", style = "flex-grow: 1; height: 45px;")
+              } else if (output_id == "outbound_request_board") {
+                actionButton(paste0("complete_task_", request_id), "完成", class = "btn-primary", style = "flex-grow: 1; height: 45px;")
+              },
+              
+              actionButton(paste0("delete_request_", request_id), "删除", class = "btn-secondary", style = "flex-grow: 1; height: 45px;")
             )
           )
         })
