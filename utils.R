@@ -2207,16 +2207,17 @@ render_request_board <- function(requests, output_id, output) {
               actionButton(paste0("mark_urgent_", request_id), "加急", class = "btn-danger", style = "flex-grow: 1; height: 45px;"),
               
               if (output_id == "purchase_request_board") {
-                tagList(
-                  actionButton(paste0("provider_arranged_", request_id), "安排", class = "btn-primary", style = "flex-grow: 1; height: 45px;"),
-                )
+                actionButton(paste0("provider_arranged_", request_id), "安排", class = "btn-primary", style = "flex-grow: 1; height: 45px;")
+                
               } else if (output_id == "provider_arranged_board") {
                 tagList(
                   actionButton(paste0("done_paid_", request_id), "完成", class = "btn-primary", style = "flex-grow: 1; height: 45px;"),
                   actionButton(paste0("done_paid_cancel_", request_id), "撤回", class = "btn-warning", style = "flex-grow: 1; height: 45px;")
                 )
+                
               } else if (output_id == "done_paid_board") {
                 actionButton(paste0("complete_task_cancel_", request_id), "撤回", class = "btn-warning", style = "flex-grow: 1; height: 45px;")
+                
               } else if (output_id == "outbound_request_board") {
                 actionButton(paste0("complete_task_", request_id), "完成", class = "btn-primary", style = "flex-grow: 1; height: 45px;")
               },
@@ -2330,8 +2331,16 @@ bind_buttons <- function(request_id, requests, input, output, session, con) {
     dbExecute(con, "UPDATE requests SET RequestType = '付款' WHERE RequestID = ?", params = list(request_id))
   }, ignoreInit = TRUE)
   
+  observeEvent(input[[paste0("done_paid_cancel_", request_id)]], {
+    dbExecute(con, "UPDATE requests SET RequestType = '安排' WHERE RequestID = ?", params = list(request_id))
+  }, ignoreInit = TRUE)
+  
   observeEvent(input[[paste0("complete_task_", request_id)]], {
     dbExecute(con, "UPDATE requests SET RequestStatus = '已完成' WHERE RequestID = ?", params = list(request_id))
+  }, ignoreInit = TRUE)
+  
+  observeEvent(input[[paste0("complete_task_cancel_", request_id)]], {
+    dbExecute(con, "UPDATE requests SET RequestStatus = '付款' WHERE RequestID = ?", params = list(request_id))
   }, ignoreInit = TRUE)
   
   observeEvent(input[[paste0("delete_request_", request_id)]], {
