@@ -3,6 +3,8 @@ library(stringi)
 
 pdf_paths <- list.files("C:/Users/y-zhe/OneDrive/Desktop/labels", full.names = TRUE)
 
+pdf_path <- pdf_paths[5]
+
 extract_shipping_label_info <- function(pdf_path, dpi = 300) {
   
   pdf_image <- magick::image_read_pdf(pdf_path, density = dpi)
@@ -34,6 +36,11 @@ extract_shipping_label_info <- function(pdf_path, dpi = 300) {
     regex_pattern <- paste0("(?i)\\b(", paste(address_keywords, collapse = "|"), ")(\\s+", paste(address_keywords, collapse = "|"), ")?\\b")
     potential_names <- potential_names[!stri_detect_regex(potential_names, regex_pattern, case_insensitive = TRUE)]
     
+    # 移除特殊符号行
+    special_keywords <- c("#")
+    potential_names <- potential_names[!stri_detect_regex(potential_names, special_keywords, case_insensitive = TRUE)]
+    
+    
     # 检查每一行是否可能是名字
     for (potential_name in potential_names) {
       if (!is.na(potential_name)) {
@@ -60,7 +67,7 @@ extract_shipping_label_info <- function(pdf_path, dpi = 300) {
         
         # 检查名字格式（支持 1 到 4 个单词）
         if (stri_detect_regex(
-          potential_name, "^([A-Z]+|[A-Z][a-z]+)(\\s([A-Z]+|[A-Z][a-z]+)){0,3}$"
+          potential_name, "^([A-Z]+|[A-Z][a-z]+|[a-z]+)(\\s([A-Z]+|[A-Z][a-z]+|[a-z]+)){0,3}$"
         )) {
           customer_name <- potential_name
           break
