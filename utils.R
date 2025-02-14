@@ -859,21 +859,53 @@ add_new_inventory_record <- function(con, sku, maker, major_type, minor_type, it
 }
 
 # 重置订单表
+# reset_order_form <- function(session, image_module, keep_order_id = FALSE) {
+#   showNotification("check")
+#   if(!keep_order_id){
+#     updateTextInput(session, "order_id", value = "")
+#   }
+#   updateSelectInput(session, "platform", selected = "")
+#   updateTextInput(session, "customer_name", value = "")
+#   updateTextInput(session, "customer_netname", value = "")
+#   updateCheckboxInput(session, "is_preorder", value = FALSE)
+#   updateCheckboxInput(session, "is_transfer_order", value = FALSE)
+#   updateTextInput(session, "tracking_number", value = "")
+#   shinyjs::reset("shiplabel_pdf_upload")
+#   shinyjs::enable("tracking_number")
+#   image_module$reset()
+#   updateTextAreaInput(session, "order_notes", value = "")
+# }
+
 reset_order_form <- function(session, image_module, keep_order_id = FALSE) {
-  if(!keep_order_id){
-    updateTextInput(session, "order_id", value = "")
-  }
-  updateSelectInput(session, "platform", selected = "")
-  updateTextInput(session, "customer_name", value = "")
-  updateTextInput(session, "customer_netname", value = "")
-  updateCheckboxInput(session, "is_preorder", value = FALSE)
-  updateCheckboxInput(session, "is_transfer_order", value = FALSE)
-  updateTextInput(session, "tracking_number", value = "")
-  shinyjs::reset("shiplabel_pdf_upload")
-  shinyjs::enable("tracking_number")
-  image_module$reset()
-  updateTextAreaInput(session, "order_notes", value = "")
+  showNotification("check")
+  
+  tryCatch({
+    if (!keep_order_id) {
+      updateTextInput(session, "order_id", value = "")
+    }
+    updateSelectInput(session, "platform", selected = "")
+    updateTextInput(session, "customer_name", value = "")
+    updateTextInput(session, "customer_netname", value = "")
+    updateCheckboxInput(session, "is_preorder", value = FALSE)
+    updateCheckboxInput(session, "is_transfer_order", value = FALSE)
+    updateTextInput(session, "tracking_number", value = "")
+    shinyjs::reset("shiplabel_pdf_upload")
+    shinyjs::enable("tracking_number")
+    
+    if (!is.null(image_module) && "reset" %in% methods(class(image_module))) {
+      image_module$reset()
+    } else {
+      showNotification("image_module 不能调用 reset()", type = "warning")
+    }
+    
+    updateTextAreaInput(session, "order_notes", value = "")
+    
+    showNotification("reset_order_form 执行完毕", type = "message")
+  }, error = function(e) {
+    showNotification(paste("reset_order_form 出错:", e$message), type = "error")
+  })
 }
+
 
 # 带优先级的货架数据
 get_shelf_items <- function(data, sku, valid_status = c("美国入库", "国内出库", "国内入库"),
