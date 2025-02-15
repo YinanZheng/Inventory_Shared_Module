@@ -2150,7 +2150,7 @@ render_request_board <- function(requests, output_id, output) {
             class = "note-card",
             style = sprintf("
               position: relative;
-              width: 330px;
+              width: 320px;
               background-color: %s;
               border: 2px solid %s;
               border-radius: 10px;
