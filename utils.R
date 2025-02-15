@@ -860,7 +860,6 @@ add_new_inventory_record <- function(con, sku, maker, major_type, minor_type, it
 
 # 重置订单表
 reset_order_form <- function(session, image_module, keep_order_id = FALSE) {
-  showNotification("check")
   if(!keep_order_id){
     updateTextInput(session, "order_id", value = "")
   }
