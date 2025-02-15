@@ -859,14 +859,12 @@ add_new_inventory_record <- function(con, sku, maker, major_type, minor_type, it
 }
 
 # 重置订单表
-reset_order_form <- function(session, image_module, keep_order_id = FALSE) {
-  if(!keep_order_id){
-    updateTextInput(session, "order_id", value = "")
-  }
+reset_order_form <- function(session, image_module) {
+  updateTextInput(session, "order_id", value = "")
   updateSelectInput(session, "platform", selected = "")
   updateTextInput(session, "customer_name", value = "")
   updateTextInput(session, "customer_netname", value = "")
-  updateSelectizeInput(session, "preorder_supplier", choices = NULL)
+  updateSelectizeInput(session, "preorder_supplier", selected = NULL)
   updateTextAreaInput(session, "preorder_item_name", value = "")
   updateCheckboxInput(session, "is_preorder", value = FALSE)
   updateCheckboxInput(session, "is_transfer_order", value = FALSE)
