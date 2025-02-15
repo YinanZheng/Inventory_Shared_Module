@@ -1384,7 +1384,7 @@ handleOperation <- function(
   if (is.null(sku) || sku == "") {
     showNotification("请先扫描 SKU！", type = "error")
     renderItemInfo(output, output_name, NULL, placeholder_300px_path, count_label, count_field)
-    return()
+    return(NULL)
   }
   
   # 查询符合条件的物品
@@ -1435,18 +1435,19 @@ handleOperation <- function(
         easyClose = TRUE,
         footer = modalButton("关闭")
       ))
-      return()
+      return(NULL)
     }
   }
   
   # 如果仍无符合条件的物品
   if (nrow(sku_items) == 0) {
     showNotification(paste0("无可", operation_name, "的物品！"), type = "message")
-    return()
+    return(NULL)
   }
   
   tryCatch({
     unique_id <- sku_items$UniqueID[1]
+    item_name <- sku_items$ItemName[1]
     
     # 动态设置瑕疵状态
     defect_status <- if (operation_name == "入库" && !is.null(input$defective_item)) {
@@ -1507,7 +1508,7 @@ handleOperation <- function(
     updateTextInput(session, paste0(operation_name, "_sku"), value = "")
     if (operation_name == "入库") updateCheckboxInput(session, "defective_item", value = FALSE)
     
-    return(sku_items$ItemName[1])
+    return(list(item_name = item_name, unique_id = unique_id))
     
   }, error = function(e) {
     # 错误处理
