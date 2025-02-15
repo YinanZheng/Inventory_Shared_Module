@@ -84,7 +84,7 @@ itemFilterUI <- function(
         fluidRow(
           column(12, 
                  dateRangeInput(ns("purchase_date_range"), "采购日期范围", 
-                                start = Sys.Date() - 365, end = Sys.Date(), width = "100%")
+                                start = Sys.Date() - 365, end = Sys.Date() + 1, width = "100%")
           )
         )
       },
@@ -92,7 +92,7 @@ itemFilterUI <- function(
       if (use_exit_date) {
         div(
           dateRangeInput(ns("exit_date_range"), "出库日期范围", 
-                         start = Sys.Date() - 365, end = Sys.Date(), width = "100%"),
+                         start = Sys.Date() - 365, end = Sys.Date() + 1, width = "100%"),
           checkboxInput(ns("only_show_exit"), "仅显示出库物品", value = FALSE, width = "100%")
         )
       },
@@ -100,7 +100,7 @@ itemFilterUI <- function(
       if (use_sold_date) {
         div(
           dateRangeInput(ns("sold_date_range"), "售出日期范围", 
-                         start = Sys.Date() - 365, end = Sys.Date(), width = "100%"),
+                         start = Sys.Date() - 365, end = Sys.Date() + 1, width = "100%"),
           checkboxInput(ns("only_show_sold"), "仅显示售出物品", value = FALSE, width = "100%")
         )
       }
