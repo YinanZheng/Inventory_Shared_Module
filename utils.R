@@ -860,7 +860,7 @@ add_new_inventory_record <- function(con, sku, maker, major_type, minor_type, it
 
 #从订单备注中提取预订单供应商和预定物品
 extract_items_and_suppliers <- function(order_notes) {
-  supplier_pattern <- "【供应商】(.*?)【预定物品】"
+  supplier_pattern <- "【供应商】(.*?)\\s"
   items_pattern <- "【预定物品】(.*?)(；|$)"
   
   supplier_match <- regmatches(order_notes, regexpr(supplier_pattern, order_notes, perl = TRUE))
