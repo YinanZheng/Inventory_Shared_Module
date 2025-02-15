@@ -864,7 +864,7 @@ reset_order_form <- function(session, image_module) {
   updateSelectInput(session, "platform", selected = "")
   updateTextInput(session, "customer_name", value = "")
   updateTextInput(session, "customer_netname", value = "")
-  updateSelectizeInput(session, "preorder_supplier", selected = NULL)
+  updateSelectizeInput(session, "preorder_supplier", selected = "")
   updateTextAreaInput(session, "preorder_item_name", value = "")
   updateCheckboxInput(session, "is_preorder", value = FALSE)
   updateCheckboxInput(session, "is_transfer_order", value = FALSE)
