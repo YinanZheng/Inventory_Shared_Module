@@ -1493,16 +1493,18 @@ handleOperation <- function(
       count_field = count_field
     )
     
-    # 如果计数字段为 0，显示模态弹窗
-    if (item_info[[count_field]][1] == 0) {
-      showModal(modalDialog(
-        title = paste0(operation_name, "完成"),
-        paste0("此 SKU 的商品已全部完成 ", operation_name, "！"),
-        easyClose = TRUE,
-        footer = NULL
-      ))
-      shinyjs::delay(2000, removeModal())
-    }
+    # # 如果计数字段为 0，显示模态弹窗
+    # if (item_info[[count_field]][1] == 0) {
+    #   showModal(modalDialog(
+    #     title = paste0(operation_name, "完成"),
+    #     paste0("此 SKU 的商品已全部完成 ", operation_name, "！"),
+    #     easyClose = TRUE,
+    #     footer = NULL
+    #   ))
+    #   shinyjs::delay(2000, {
+    #       removeModal()
+    #   })
+    # }
     
     # 重置输入框和控件
     updateTextInput(session, paste0(operation_name, "_sku"), value = "")
