@@ -1610,7 +1610,22 @@ register_order <- function(order_id, customer_name, customer_netname, platform, 
     # 如果为预订单，生成或更新供应商备注
     if (is_preorder && !is.null(preorder_supplier)) {
       supplier_prefix <- "【供应商】"
-      new_supplier_note <- paste0(supplier_prefix, preorder_supplier, "；")
+      
+      # 初始化物品备注部分
+      items_note <- ""
+      
+      # 检查 preorder_item_name 是否为空
+      if (!is.null(preorder_item_name) && preorder_item_name != "") {
+        item_list <- unlist(strsplit(preorder_item_name, "\n"))
+        item_list <- item_list[item_list != ""]
+        if (length(item_list) > 0) {
+          items_str <- paste(item_list, collapse = ",")
+          items_note <- paste0(" 【预定物品】", items_str)
+        }
+      }
+      
+      # 创建新的供应商备注
+      new_supplier_note <- paste0(supplier_prefix, preorder_supplier, items_note, "；")
       
       if (nrow(existing_order) > 0) {
         existing_notes <- existing_order$OrderNotes[1] %||% ""  # 确保为长度为 1 的字符
