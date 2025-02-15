@@ -1619,7 +1619,7 @@ register_order <- function(order_id, customer_name, customer_netname, platform, 
         item_list <- unlist(strsplit(preorder_item_name, "\n"))
         item_list <- item_list[item_list != ""]
         if (length(item_list) > 0) {
-          items_str <- paste(item_list, collapse = ",")
+          items_str <- paste(item_list, collapse = "，")
           items_note <- paste0(" 【预定物品】", items_str)
         }
       }
