@@ -858,6 +858,25 @@ add_new_inventory_record <- function(con, sku, maker, major_type, minor_type, it
   })
 }
 
+#从订单备注中提取预订单供应商和预定物品
+extract_items_and_suppliers <- function(order_notes) {
+  supplier_pattern <- "【供应商】(.*?)【预定物品】"
+  items_pattern <- "【预定物品】(.*?)(；|$)"
+  
+  supplier_match <- regmatches(order_notes, regexpr(supplier_pattern, order_notes, perl = TRUE))
+  items_match <- regmatches(order_notes, regexpr(items_pattern, order_notes, perl = TRUE))
+  
+  if (length(supplier_match) > 0 && length(items_match) > 0) {
+    supplier <- sub(supplier_pattern, "\\1", supplier_match, perl = TRUE)
+    items_str <- sub(items_pattern, "\\1", items_match, perl = TRUE)
+    items_list <- unlist(strsplit(items_str, "，"))
+    items_list <- trimws(items_list)  # 去除前后空白
+    return(data.frame(Item = items_list, Supplier = supplier, stringsAsFactors = FALSE))
+  } else {
+    return(data.frame(Item = character(0), Supplier = character(0), stringsAsFactors = FALSE))
+  }
+}
+
 # 重置订单表
 reset_order_form <- function(session, image_module) {
   updateTextInput(session, "order_id", value = "")
