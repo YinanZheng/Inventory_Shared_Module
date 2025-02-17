@@ -389,12 +389,12 @@ apply_dynamic_styles <- function(table, column_names) {
       formatStyle(
         "库存态",
         backgroundColor = styleEqual(
-          c("采购", "国内入库", "国内售出", "国内出库", "美国入库", "美国调货", "美国发货", "退货"),
-          c("lightgray", "#c7e89b", "#9ca695", "#46a80d", "#6f52ff", "#529aff", "#faf0d4", "red")
+          c("采购", "国内入库", "国内售出", "国内出库", "美国入库", "美国调货", "美国发货", "交易完毕"),
+          c("lightgray", "#c7e89b", "#9ca695", "#46a80d", "#6f52ff", "#529aff", "#faf0d4", "#f4c7fc")
         ),
         color = styleEqual(
-          c("采购", "国内入库", "国内售出", "国内出库", "美国入库", "美国调货", "美国发货", "退货"),
-          c("black", "black", "black", "white", "white", "black", "black", "white")
+          c("采购", "国内入库", "国内售出", "国内出库", "美国入库", "美国调货", "美国发货", "交易完毕"),
+          c("black", "black", "black", "white", "white", "black", "black", "black")
         )
       )
   }
