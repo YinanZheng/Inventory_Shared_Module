@@ -36,6 +36,107 @@ db_connection <- function() {
   )
 }
 
+
+# 更新物品状态
+update_status <- function(con, unique_id, new_status = NULL, defect_status = NULL, 
+                          shipping_method = NULL, clear_shipping_method = FALSE, 
+                          refresh_trigger = NULL, update_timestamp = TRUE, 
+                          clear_status_timestamp = NULL) {
+  # 检查 UniqueID 是否存在
+  current_status <- dbGetQuery(con, paste0(
+    "SELECT Status, updated_at FROM unique_items WHERE UniqueID = '", unique_id, "'"
+  ))
+  
+  if (nrow(current_status) == 0) {
+    showNotification("UniqueID not found", type = "error")
+    return()
+  }
+  
+  # 如果 new_status 发生变化，记录状态历史
+  if (!is.null(new_status) && current_status$Status != new_status) {
+    dbExecute(con, paste0(
+      "INSERT INTO item_status_history (UniqueID, previous_status, previous_status_timestamp) VALUES ('",
+      unique_id, "', '", current_status$Status, "', '", current_status$updated_at, "')"
+    ))
+  }
+  
+  # 构建动态 SQL 子句
+  set_clauses <- c(
+    if (!is.null(new_status)) {
+      # 检查 new_status 的合法性
+      if (!new_status %in% names(status_columns)) {
+        showNotification("Invalid status provided", type = "error")
+        return()
+      }
+      # 获取时间戳列
+      timestamp_column <- status_columns[[new_status]]
+      timestamp_update <- if (update_timestamp) paste0(timestamp_column, " = NOW()") else NULL
+      c("Status = ?", timestamp_update)
+    } else {
+      NULL
+    },
+    if (!is.null(defect_status)) "Defect = ?" else NULL,
+    if (!is.null(shipping_method)) "IntlShippingMethod = ?" else NULL,
+    if (clear_shipping_method) "IntlShippingMethod = NULL" else NULL, # 显式清空运输方式
+    if (!is.null(clear_status_timestamp)) {
+      # 检查 clear_status_timestamp 的合法性
+      if (!clear_status_timestamp %in% names(status_columns)) {
+        showNotification("Invalid clear_status_timestamp provided", type = "error")
+        return()
+      }
+      paste0(status_columns[[clear_status_timestamp]], " = NULL") # 清空指定列
+    } else {
+      NULL
+    }
+  )
+  
+  # 拼接 SET 子句
+  set_clause <- paste(set_clauses[!is.null(set_clauses)], collapse = ", ")
+  
+  # 如果没有任何更新内容，提示错误并返回
+  if (set_clause == "") {
+    showNotification("No updates provided", type = "error")
+    return()
+  }
+  
+  # 构建 SQL 查询
+  query <- paste0(
+    "UPDATE unique_items SET ", set_clause, " WHERE UniqueID = ?"
+  )
+  
+  # 构建参数列表
+  params <- c(
+    if (!is.null(new_status)) list(new_status) else NULL,
+    if (!is.null(defect_status)) list(defect_status) else NULL,
+    if (!is.null(shipping_method)) list(shipping_method) else NULL,
+    list(unique_id)  # 唯一 ID 是必须的
+  )
+  
+  # 展平参数列表
+  params <- unlist(params)
+  
+  # 执行 SQL 更新
+  dbExecute(con, query, params = params)
+  
+  # 触发刷新
+  if (!is.null(refresh_trigger)) {
+    refresh_trigger(!refresh_trigger())
+  }
+}
+
+
+# 定义需要记录时间的状态
+status_columns <<- list(
+  "采购" = "PurchaseTime",
+  "国内入库" = "DomesticEntryTime",
+  "国内出库" = "DomesticExitTime",
+  "国内售出" = "DomesticSoldTime",
+  "美国入库" = "UsEntryTime",
+  "美国发货" = "UsShippingTime",
+  "美国调货" = "UsRelocationTime",
+  "交易完毕" = "CompleteTime"
+)
+
 ### USPS API functions
 
 # 获取 Access Token
@@ -163,6 +264,20 @@ update_order_status <- function(order_id, new_status, con) {
     "UPDATE orders SET OrderStatus = ?, updated_at = CURRENT_TIMESTAMP WHERE OrderID = ?",
     params = list(new_status, order_id)
   )
+
+  # 果订单状态变为 '送达'，则更新物品状态为 '交易完毕'
+  if (new_status == "送达") {
+    order_items <- dbGetQuery(con, "SELECT UniqueID FROM unique_items WHERE OrderID = ?", params = list(order_id))
+    
+    if (nrow(order_items) > 0) {
+      for (item in order_items$UniqueID) {
+        update_status(con, unique_id = item, new_status = "交易完毕")
+      }
+      log_message(paste("订单", order_id, "的所有物品状态已更新为 '交易完毕'"))
+    } else {
+      log_message(paste("订单", order_id, "没有关联的物品，无需更新"))
+    }
+  }
 }
 
 # 状态映射规则
