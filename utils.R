@@ -884,6 +884,7 @@ extract_items_and_suppliers <- function(order_notes) {
 reset_order_form <- function(session, image_module) {
   updateTextInput(session, "order_id", value = "")
   updateSelectInput(session, "platform", selected = "")
+  updateNumericInput(session, "transaction_amount", value = 0.00)
   updateTextInput(session, "customer_name", value = "")
   updateTextInput(session, "customer_netname", value = "")
   updateSelectizeInput(session, "preorder_supplier", selected = character(0))
