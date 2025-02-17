@@ -73,6 +73,7 @@ CREATE TABLE `orders` (
   `CustomerName` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `CustomerNetName` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `Platform` enum('Etsy','Shopify','TikTok','其他') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `TransactionAmount` decimal(10,2) NOT NULL DEFAULT '0.00',
   `OrderImagePath` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `OrderNotes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `OrderStatus` enum('备货','预定','调货','装箱','发出','在途','送达') COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -81,7 +82,7 @@ CREATE TABLE `orders` (
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`OrderID`),
   KEY `idx_customer_name` (`CustomerName`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 
 CREATE TABLE `intl_shipments` (
   `TrackingNumber` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
