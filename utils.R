@@ -1585,8 +1585,8 @@ update_order_montage <- function(order_id, con, unique_items_data) {
 }
 
 # 订单注册与更新
-register_order <- function(order_id, customer_name, customer_netname, platform, order_notes, tracking_number, 
-                           image_data, con, orders, box_items, unique_items_data, 
+register_order <- function(order_id, customer_name, customer_netname, platform, transaction_amount = 0, order_notes, tracking_number, 
+                           image_data, con, orders, box_items, unique_items_data,
                            is_transfer_order = NULL, is_preorder = NULL, preorder_supplier = NULL, preorder_item_name = NULL) {
   tryCatch({
     # 将 NULL 的 is_transfer_order 和 is_preorder 设置为默认值 FALSE
@@ -1721,6 +1721,7 @@ register_order <- function(order_id, customer_name, customer_netname, platform, 
     customer_netname <- customer_netname %||% NA
     order_image_path <- as.character(order_image_path %||% NA)
     platform <- platform %||% ""
+    transaction_amount <- as.numeric(transaction_amount)
     
     # 插入或更新订单
     if (nrow(existing_order) > 0) {
@@ -1732,6 +1733,7 @@ register_order <- function(order_id, customer_name, customer_netname, platform, 
             CustomerName = COALESCE(?, CustomerName),
             CustomerNetName = COALESCE(?, CustomerNetName),
             Platform = COALESCE(?, Platform),
+            TransactionAmount = ?
             OrderStatus = ?,
             LabelStatus = ?
         WHERE OrderID = ?",
@@ -1742,6 +1744,7 @@ register_order <- function(order_id, customer_name, customer_netname, platform, 
                   customer_name,
                   customer_netname,
                   platform,
+                  transaction_amount,
                   order_status,
                   label_status,
                   order_id
@@ -1750,8 +1753,8 @@ register_order <- function(order_id, customer_name, customer_netname, platform, 
       showNotification("订单信息已更新！", type = "message")
     } else {
       dbExecute(con, "
-        INSERT INTO orders (OrderID, UsTrackingNumber, OrderNotes, CustomerName, CustomerNetName, Platform, OrderImagePath, OrderStatus, LabelStatus)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        INSERT INTO orders (OrderID, UsTrackingNumber, OrderNotes, CustomerName, CustomerNetName, Platform, TransactionAmount, OrderImagePath, OrderStatus, LabelStatus)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 params = list(
                   order_id,
                   tracking_number,
@@ -1759,6 +1762,7 @@ register_order <- function(order_id, customer_name, customer_netname, platform, 
                   customer_name,
                   customer_netname,
                   platform,
+                  transaction_amount,
                   order_image_path,
                   order_status,
                   label_status
