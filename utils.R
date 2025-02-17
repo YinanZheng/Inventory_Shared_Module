@@ -1623,11 +1623,11 @@ register_order <- function(order_id, customer_name, customer_netname, platform, 
       "无"
     }
     
-    # 如果状态为 "调货" 且 LabelStatus 为 "无"，显示错误通知
-    if (order_status == "调货" && label_status == "无") {
-      showNotification("调货订单必须上传运单 PDF！", type = "error")
-      return(FALSE)
-    }
+    # # 如果状态为 "调货" 且 LabelStatus 为 "无"，显示错误通知
+    # if (order_status == "调货" && label_status == "无") {
+    #   showNotification("调货订单必须上传运单 PDF！", type = "error")
+    #   return(FALSE)
+    # }
     
     # 如果为预订单，生成或更新供应商备注
     if (is_preorder && !is.null(preorder_supplier)) {
