@@ -1733,7 +1733,7 @@ register_order <- function(order_id, customer_name, customer_netname, platform, 
             CustomerName = COALESCE(?, CustomerName),
             CustomerNetName = COALESCE(?, CustomerNetName),
             Platform = COALESCE(?, Platform),
-            TransactionAmount = ?
+            TransactionAmount = ?,
             OrderStatus = ?,
             LabelStatus = ?
         WHERE OrderID = ?",
