@@ -3,7 +3,8 @@ library(stringi)
 
 pdf_paths <- list.files("C:/Users/y-zhe/OneDrive/Desktop/labels", full.names = TRUE)
 
-pdf_path <- pdf_paths[5]
+pdf_path <- pdf_paths[2]
+dpi = 300
 
 extract_shipping_label_info <- function(pdf_path, dpi = 300) {
   
@@ -40,6 +41,8 @@ extract_shipping_label_info <- function(pdf_path, dpi = 300) {
     special_keywords <- c("#")
     potential_names <- potential_names[!stri_detect_regex(potential_names, special_keywords, case_insensitive = TRUE)]
     
+    # 过滤掉 "词组+数字"
+    potential_names <- potential_names[!stringi::stri_detect_regex(potential_names, "\\b[A-Za-z]+\\s?\\d+\\b")]
     
     # 检查每一行是否可能是名字
     for (potential_name in potential_names) {
