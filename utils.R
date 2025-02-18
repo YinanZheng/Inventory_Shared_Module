@@ -923,7 +923,7 @@ reset_order_form <- function(session, image_module) {
   updateTextInput(session, "order_id", value = "")
   updateSelectInput(session, "platform", selected = "")
   updateNumericInput(session, "transaction_amount", value = "")
-  shinyjs::runjs("$('#transaction_amount').attr('placeholder', '请输入成交额');")  # 重新添加 placeholder
+  shinyjs::runjs("$('#transaction_amount').attr('placeholder', '成交额（$）');")  # 重新添加 placeholder
   updateTextInput(session, "customer_name", value = "")
   updateTextInput(session, "customer_netname", value = "")
   updateSelectizeInput(session, "preorder_supplier", selected = character(0))
