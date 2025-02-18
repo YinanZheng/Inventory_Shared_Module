@@ -1624,7 +1624,7 @@ update_order_montage <- function(order_id, con, unique_items_data) {
 }
 
 # 订单注册与更新
-register_order <- function(order_id, customer_name, customer_netname, platform, transaction_amount = 0, order_notes, tracking_number, 
+register_order <- function(order_id, customer_name, customer_netname, platform, transaction_amount, order_notes, tracking_number, 
                            image_data, con, orders, box_items, unique_items_data,
                            is_transfer_order = NULL, is_preorder = NULL, preorder_supplier = NULL, preorder_item_name = NULL) {
   tryCatch({
