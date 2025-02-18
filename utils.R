@@ -1760,8 +1760,7 @@ register_order <- function(order_id, customer_name, customer_netname, platform, 
     customer_netname <- customer_netname %||% NA
     order_image_path <- as.character(order_image_path %||% NA)
     platform <- platform %||% ""
-    transaction_amount <- as.numeric(transaction_amount %||% 0)
-    
+
     # 插入或更新订单
     if (nrow(existing_order) > 0) {
       dbExecute(con, "
