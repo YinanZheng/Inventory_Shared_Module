@@ -53,3 +53,19 @@ split_file(
   filetype = "ui",
   lines_per_file = 1000         # 每个文件的行数
 )
+
+
+# 使用脚本
+split_file(
+  input_file = "D:/Github/Inventory_App/server.R",    # 输入文件路径
+  output_dir = "D:/Github/Inventory_Shared_Module/maintainance/split",     # 输出目录
+  filetype = "server",
+  lines_per_file = 1000         # 每个文件的行数
+)
+
+split_file(
+  input_file = "D:/Github/Inventory_App/ui.R",    # 输入文件路径
+  output_dir = "D:/Github/Inventory_Shared_Module/maintainance/split",     # 输出目录
+  filetype = "ui",
+  lines_per_file = 1000         # 每个文件的行数
+)
