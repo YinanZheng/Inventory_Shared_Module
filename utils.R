@@ -928,6 +928,7 @@ reset_order_form <- function(session, image_module) {
   updateTextInput(session, "customer_netname", value = "")
   updateSelectizeInput(session, "preorder_supplier", selected = character(0))
   updateTextAreaInput(session, "preorder_item_name", value = "")
+  shinyjs::runjs("$('#preorder_img').hide();")
   updateCheckboxInput(session, "is_preorder", value = FALSE)
   updateCheckboxInput(session, "is_transfer_order", value = FALSE)
   updateTextInput(session, "tracking_number", value = "")
