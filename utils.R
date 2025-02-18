@@ -2475,7 +2475,7 @@ process_data <- function(dat) {
   domestic <- dat %>% filter(Status == "国内入库")
   logistics <- dat %>% filter(Status == "国内出库" & !is.na(IntlTracking))
   us <- dat %>% filter(Status == "美国入库")
-  sold <- dat %>% filter(Status %in% c("国内售出", "美国调货", "美国发货"))
+  sold <- dat %>% filter(Status %in% c("国内售出", "美国调货", "美国发货", "交易完毕"))
   
   list(
     domestic = list(
@@ -2495,7 +2495,7 @@ process_data <- function(dat) {
     ),
     sold = list(
       count = nrow(sold),
-      us_shipping_count = nrow(sold %>% filter(Status == "美国发货")),
+      us_shipping_count = nrow(sold %>% filter(Status == "交易完毕")),
       value = sum(sold$ProductCost, na.rm = TRUE),
       shipping = sum(sold$IntlShippingCost + sold$DomesticShippingCost, na.rm = TRUE)
     )
