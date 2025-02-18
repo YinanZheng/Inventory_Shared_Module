@@ -450,6 +450,44 @@ apply_dynamic_styles <- function(table, column_names) {
   return(table)
 }
 
+# 删除匹配的预定单备注物品
+remove_preorder_item_note <- function(str, target) {
+  # 定义正则表达式，捕获【预定物品】和；之间的内容
+  pattern <- "【预定物品】([^；]+)；"
+  
+  # 提取匹配结果
+  match_info <- regexec(pattern, str, perl = TRUE)
+  matches <- regmatches(str, match_info)
+  
+  # 判断是否找到了匹配字段
+  if (length(matches[[1]]) > 1) {
+    # 捕获组中的内容，例如 "测试商品，测试"
+    field_content <- matches[[1]][2]
+    
+    # 按中文逗号分割成物品列表
+    items <- unlist(strsplit(field_content, "，"))
+    
+    # 查找第一个完全匹配目标物品的索引
+    idx <- match(target, items)
+    
+    # 如果找到了，则删除该项
+    if (!is.na(idx)) {
+      items <- items[-idx]
+    }
+    
+    # 重新拼接物品列表（没有物品则为空字符串）
+    new_field_content <- paste(items, collapse = "，")
+    
+    # 用新字段替换原始字符串中的【预定物品】字段
+    new_str <- sub(pattern, paste0("【预定物品】", new_field_content, "；"), str, perl = TRUE)
+    
+    return(new_str)
+  } else {
+    # 如果没有找到【预定物品】字段，返回原字符串
+    return(str)
+  }
+}
+
 # 获取指定账户的余额
 get_balance <- function(account_type, con) {
   # 查询指定账户的最新余额（按时间排序）
