@@ -2372,9 +2372,10 @@ renderRemarks <- function(request_id, requests) {
 refresh_board <- function(requests, output) {
   # 定义 RequestType 与对应的 UI 输出 ID
   request_types <- list(
+    "新品" = "new_product_board",
     "采购" = "purchase_request_board",
     "安排" = "provider_arranged_board",
-    "付款" = "done_paid_board",
+    "完成" = "done_paid_board",
     "出库" = "outbound_request_board"
   )
   
