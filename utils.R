@@ -2451,17 +2451,38 @@ bind_buttons <- function(request_id, requests, input, output, session, con) {
     
     new_remark <- format_remark(remark, system_type)
     
-    # 更新数据库中的 Remarks 字段
-    current_remarks <- requests %>% filter(RequestID == request_id) %>% pull(Remarks)
-    current_remarks_text <- ifelse(is.na(current_remarks), "", current_remarks)
-    updated_remarks <- if (current_remarks_text == "") new_remark else paste(new_remark, current_remarks_text, sep = ";")
+    # 检查 remark 是否是修改数量的指令，口令为 "Quantity="
+    quantity_match <- regmatches(remark, regexec("^Quantity=(\\d+)$", remark))
     
-    dbExecute(con, "UPDATE requests SET Remarks = ? WHERE RequestID = ?", params = list(updated_remarks, request_id))
-    
-    # 动态更新 UI
-    output[[paste0("remarks_", request_id)]] <- renderUI({
-      renderRemarks(request_id, requests)
-    })
+    if (length(quantity_match[[1]]) > 1) {
+      # 提取 X 值并转换为整数
+      new_quantity <- as.integer(quantity_match[[1]][2])
+      
+      if (!is.na(new_quantity) && new_quantity > 0) {
+        # 更新数据库中的 Quantity
+        dbExecute(con, "UPDATE requests SET Quantity = ? WHERE RequestID = ?", params = list(new_quantity, request_id))
+        
+        # 重新获取最新数据
+        updated_requests <- dbGetQuery(con, "SELECT * FROM requests")
+        refresh_board(updated_requests, output)
+        
+        showNotification(paste("请求数量已更新为", new_quantity, "！"), type = "message")
+      } else {
+        showNotification("无效的数量输入，请使用 'Quantity=X' 格式，X 为正整数。", type = "error")
+      }
+    } else {
+      # 更新数据库中的 Remarks 字段
+      current_remarks <- requests %>% filter(RequestID == request_id) %>% pull(Remarks)
+      current_remarks_text <- ifelse(is.na(current_remarks), "", current_remarks)
+      updated_remarks <- if (current_remarks_text == "") new_remark else paste(new_remark, current_remarks_text, sep = ";")
+      
+      dbExecute(con, "UPDATE requests SET Remarks = ? WHERE RequestID = ?", params = list(updated_remarks, request_id))
+      
+      # 动态更新 UI
+      output[[paste0("remarks_", request_id)]] <- renderUI({
+        renderRemarks(request_id, requests)
+      })
+    }
     
     # 清空输入框
     updateTextInput(session, paste0("remark_input_", request_id), value = "")
