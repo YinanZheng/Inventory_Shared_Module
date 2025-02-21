@@ -2314,7 +2314,7 @@ render_request_board <- function(requests, output_id, output) {
               } else if (output_id == "done_paid_board") {
                 actionButton(paste0("done_paid_cancel_", request_id), "撤回", class = "btn-warning", style = "flex-grow: 1; height: 45px;")
                 
-              } else if (output_id == "outbound_request_board") {
+              } else if (output_id %in% c("outbound_request_board", "new_product_board")) {
                 actionButton(paste0("complete_task_", request_id), "完成", class = "btn-primary", style = "flex-grow: 1; height: 45px;")
               },
               
