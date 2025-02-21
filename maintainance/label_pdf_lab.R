@@ -2,6 +2,7 @@
 library(stringi)
 
 pdf_paths <- list.files("C:/Users/y-zhe/OneDrive/Desktop/labels", full.names = TRUE)
+pdf_paths <- list.files("./", full.names = TRUE)
 
 pdf_path <- pdf_paths[2]
 dpi = 300
@@ -26,7 +27,15 @@ extract_shipping_label_info <- function(pdf_path, dpi = 300) {
   # 找到 "USPS TRACKING" 所在的行
   usps_line_index <- which(stri_detect_fixed(lines, "USPS TRACKING", case_insensitive = TRUE))
   
-  if (length(usps_line_index) > 0) {
+  # **找到 "SHIP TO:" 关键词并提取名字**
+  ship_to_line <- lines[stri_detect_regex(lines, "SHIP TO:", case_insensitive = FALSE)]
+  if (length(ship_to_line) > 0) {
+    # 直接提取 "SHIP TO:" 后的内容
+    name_match <- stri_match_first_regex(ship_to_line[1], "SHIP TO:\\s*(.*)", case_insensitive = TRUE)
+    if (!is.na(name_match[2]) && nchar(name_match[2]) > 0) {
+      customer_name <- stri_trim_both(name_match[2])  # 获取 "SHIP TO:" 之后的内容
+    }
+  } else if (length(usps_line_index) > 0) {
     name_line_indices <- usps_line_index - c(3:5)
     name_line_indices <- name_line_indices[name_line_indices > 0]  # 确保索引有效
     
@@ -91,6 +100,8 @@ extract_shipping_label_info <- function(pdf_path, dpi = 300) {
     tracking_number = tracking_number
   ))
 }
+
+extract_shipping_label_info(pdf_path)
 
 for(pdf_path in pdf_paths)
 {
