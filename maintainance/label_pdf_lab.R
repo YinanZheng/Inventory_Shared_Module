@@ -1,11 +1,13 @@
 
 library(stringi)
 
-pdf_paths <- list.files("C:/Users/y-zhe/OneDrive/Desktop/labels", full.names = TRUE)
-pdf_paths <- list.files("./", full.names = TRUE)
+pdf_paths <- list.files("/home/ubuntu/labels", full.names = TRUE)
 
-pdf_path <- pdf_paths[2]
+### Debugging
+pdf_paths
+pdf_path <- pdf_paths[]
 dpi = 300
+### Debugging
 
 extract_shipping_label_info <- function(pdf_path, dpi = 300) {
   
@@ -100,8 +102,6 @@ extract_shipping_label_info <- function(pdf_path, dpi = 300) {
     tracking_number = tracking_number
   ))
 }
-
-extract_shipping_label_info(pdf_path)
 
 for(pdf_path in pdf_paths)
 {
