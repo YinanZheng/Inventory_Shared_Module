@@ -2262,11 +2262,9 @@ render_request_board <- function(requests, output_id, output) {
                   src = ifelse(is.na(item$ItemImagePath), placeholder_150px_path, paste0(host_url, "/images/", basename(item$ItemImagePath))),
                   style = "width: 100%; max-height: 120px; object-fit: contain; box-shadow: 0px 4px 6px rgba(0,0,0,0.1); border-radius: 5px; margin-bottom: 5px; cursor: pointer;",
                   
-                  # 点击查看大图
                   onclick = sprintf("Shiny.setInputValue('view_request_image', '%s')", 
                                     ifelse(is.na(item$ItemImagePath), placeholder_150px_path, paste0(host_url, "/images/", basename(item$ItemImagePath)))),
                   
-                  # 鼠标悬停 1 秒后显示库存状态
                   onmouseover = sprintf("showInventoryStatus(event, '%s')", item$SKU),
                   onmouseout = "hideInventoryStatus()"
                 ),
