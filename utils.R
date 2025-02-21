@@ -2452,8 +2452,11 @@ bind_buttons <- function(request_id, requests, input, output, session, con) {
     
     new_remark <- format_remark(remark, system_type)
     
-    # 检查 remark 是否是修改数量的指令，口令为 "Quantity="
+    # 解析 `Quantity=X`
     quantity_match <- regmatches(remark, regexec("^Quantity=(\\d+)$", remark))
+    
+    # 解析 `Maker=XXX`
+    maker_match <- regmatches(remark, regexec("^Maker=(.+)$", remark))
     
     if (length(quantity_match[[1]]) > 1) {
       # 提取 X 值并转换为整数
@@ -2470,6 +2473,22 @@ bind_buttons <- function(request_id, requests, input, output, session, con) {
         showNotification(paste("请求数量已更新为", new_quantity, "！"), type = "message")
       } else {
         showNotification("无效的数量输入，请使用 'Quantity=X' 格式，X 为正整数。", type = "error")
+      }
+    } else if (length(maker_match[[1]]) > 1) {
+      # 提取供应商名称
+      new_maker <- trimws(maker_match[[1]][2])
+      
+      if (nchar(new_maker) > 0) {
+        # 更新数据库中的 Maker
+        dbExecute(con, "UPDATE requests SET Maker = ? WHERE RequestID = ?", params = list(new_maker, request_id))
+        
+        # 重新获取最新数据
+        updated_requests <- dbGetQuery(con, "SELECT * FROM requests")
+        refresh_board(updated_requests, output)
+        
+        showNotification(paste("供应商已更新为", new_maker, "！"), type = "message")
+      } else {
+        showNotification("无效的供应商输入，请使用 'Maker=XXX' 格式。", type = "error")
       }
     } else {
       # 更新数据库中的 Remarks 字段
