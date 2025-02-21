@@ -2523,6 +2523,21 @@ calculate_totals <- function(data) {
   list(total_value = total_value, total_shipping = total_shipping)
 }
 
+# 扩展 Shiny 的 JavaScript 朗读功能
+speak_text <- function(text) {
+  js_code <- sprintf("
+    if (!window.speechSynthesis) {
+      console.error('当前浏览器不支持语音合成');
+    } else {
+      var msg = new SpeechSynthesisUtterance('%s');
+      msg.lang = 'zh-CN';
+      window.speechSynthesis.speak(msg);
+    }
+  ", text)
+  
+  shinyjs::runjs(js_code)  # 运行 JavaScript 语音朗读
+}
+
 # 自定义函数
 `%||%` <- function(a, b) {
   if (!is.null(a)) a else b
