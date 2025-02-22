@@ -2214,122 +2214,419 @@ match_tracking_number <- function(data, tracking_number_column, input_tracking_i
   return(matched_data)
 }
 
-# 协作便签渲染函数：根据传入的请求数据和输出目标动态生成 UI
-render_request_board <- function(requests, output_id, output) {
-  if (nrow(requests) == 0) {
+# 定义排序函数
+sort_requests <- function(df) {
+  df %>%
+    arrange(
+      factor(RequestStatus, levels = c("紧急", "待处理", "已完成")),
+      Maker,
+      CreatedAt
+    )
+}
+
+# 增量渲染任务板
+refresh_board_incremental <- function(requests, output) {
+  request_types <- list(
+    "新品" = "new_product_board",
+    "采购" = "purchase_request_board",
+    "安排" = "provider_arranged_board",
+    "完成" = "done_paid_board",
+    "出库" = "outbound_request_board"
+  )
+  
+  lapply(names(request_types), function(req_type) {
+    output_id <- request_types[[req_type]]
+    filtered_requests <- requests %>% filter(RequestType == req_type) %>% sort_requests()
+    
     output[[output_id]] <- renderUI({
-      div(style = "text-align: center; color: grey; margin-top: 20px;", tags$p("当前没有待处理事项"))
+      if (nrow(filtered_requests) == 0) {
+        div(style = "text-align: center; color: grey; margin-top: 20px;", tags$p("当前没有待处理事项"))
+      } else {
+        div(
+          style = "display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); row-gap: 15px; column-gap: 15px; padding: 5px;",
+          lapply(filtered_requests$RequestID, function(request_id) {
+            uiOutput(paste0("request_card_", request_id))
+          })
+        )
+      }
     })
+    
+    # 直接渲染所有卡片，不检查是否已存在
+    lapply(filtered_requests$RequestID, function(request_id) {
+      render_single_request(request_id, filtered_requests, output)
+    })
+  })
+}
+
+# 更新单个 request 数据并重新渲染
+update_single_request <- function(request_id, requests_data, output) {
+  current_data <- requests_data()
+  updated_row <- current_data %>% filter(RequestID == request_id)
+  if (nrow(updated_row) > 0) {
+    render_single_request(request_id, current_data, output)
   } else {
-    output[[output_id]] <- renderUI({
+    output[[paste0("request_card_", request_id)]] <- renderUI(NULL)  # 删除时移除卡片
+  }
+}
+
+# 渲染单个 request 卡片
+render_single_request <- function(request_id, requests, output) {
+  item <- requests %>% filter(RequestID == request_id)
+  if (nrow(item) == 0) return()
+  
+  output[[paste0("request_card_", request_id)]] <- renderUI({
+    card_colors <- switch(
+      item$RequestStatus,
+      "紧急" = list(bg = "#ffcdd2", border = "#e57373"),
+      "待处理" = list(bg = "#fff9c4", border = "#ffd54f"),
+      "已完成" = list(bg = "#c8e6c9", border = "#81c784"),
+      list(bg = "#f0f0f0", border = "#bdbdbd")
+    )
+    
+    div(
+      class = "note-card",
+      style = sprintf("width: 300px; background-color: %s; border: 2px solid %s; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); padding: 10px; display: flex; flex-direction: column;",
+                      card_colors$bg, card_colors$border),
       div(
-        style = "display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); row-gap: 15px; column-gap: 15px; padding: 5px;",
-        lapply(1:nrow(requests), function(i) {
-          item <- requests[i, , drop = FALSE]
-          request_id <- item$RequestID
-          
-          # 根据状态设置便签背景颜色和边框颜色
-          card_colors <- switch(
-            item$RequestStatus,
-            "紧急" = list(bg = "#ffcdd2", border = "#e57373"),    # 红色背景，深红色边框
-            "待处理" = list(bg = "#fff9c4", border = "#ffd54f"),  # 橙色背景，深橙色边框
-            "已完成" = list(bg = "#c8e6c9", border = "#81c784"),   # 绿色背景，深绿色边框
-            list(bg = "#f0f0f0", border = "#bdbdbd")  # 默认灰色
+        style = "display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;",
+        tags$div(
+          style = "width: 42%; display: flex; flex-direction: column; align-items: center;",
+          tags$img(
+            src = ifelse(is.na(item$ItemImagePath), placeholder_150px_path, paste0(host_url, "/images/", basename(item$ItemImagePath))),
+            style = "width: 100%; max-height: 120px; object-fit: contain; box-shadow: 0px 4px 6px rgba(0,0,0,0.1); border-radius: 5px; margin-bottom: 5px; cursor: pointer;",
+            onclick = sprintf("Shiny.setInputValue('view_request_image', '%s')", 
+                              ifelse(is.na(item$ItemImagePath), placeholder_150px_path, paste0(host_url, "/images/", basename(item$ItemImagePath)))),
+            onmouseover = sprintf("showInventoryStatus(event, '%s')", item$SKU),
+            onmouseout = "hideInventoryStatus()"
+          ),
+          tags$div(
+            style = "width: 100%; text-align: center; font-size: 12px; color: #333;",
+            tags$p(tags$b(item$ItemDescription), style = "margin: 0;"),
+            tags$p(item$SKU, style = "margin: 0;"),
+            tags$p(tags$b("供应商:"), tags$span(item$Maker, style = "color: blue; font-weight: bold;"), style = "margin: 0;"),
+            tags$p(tags$b("请求数量:"), tags$span(item$Quantity, style = "color: red; font-weight: bold;"), style = "margin: 0;")
           )
-          
-          # 渲染便签卡片
-          div(
-            class = "note-card",
-            style = sprintf("
-              position: relative;
-              width: 300px;
-              background-color: %s;
-              border: 2px solid %s;
-              border-radius: 10px;
-              box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-              padding: 10px;
-              display: flex;
-              flex-direction: column;
-              justify-content: space-between;
-            ", card_colors$bg, card_colors$border),
-            
-            # 图片和留言记录
-            div(
-              style = "display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;",
-              tags$div(
-                style = "width: 42%; display: flex; flex-direction: column; align-items: center;",
-                tags$img(
-                  src = ifelse(is.na(item$ItemImagePath), placeholder_150px_path, paste0(host_url, "/images/", basename(item$ItemImagePath))),
-                  style = "width: 100%; max-height: 120px; object-fit: contain; box-shadow: 0px 4px 6px rgba(0,0,0,0.1); border-radius: 5px; margin-bottom: 5px; cursor: pointer;",
-                  
-                  onclick = sprintf("Shiny.setInputValue('view_request_image', '%s')", 
-                                    ifelse(is.na(item$ItemImagePath), placeholder_150px_path, paste0(host_url, "/images/", basename(item$ItemImagePath)))),
-                  
-                  onmouseover = sprintf("showInventoryStatus(event, '%s')", item$SKU),
-                  onmouseout = "hideInventoryStatus()"
-                ),
-                tags$div(
-                  style = "width: 100%; text-align: center; font-size: 12px; color: #333;",
-                  tags$p(tags$b(item$ItemDescription), style = "margin: 0;"),
-                  tags$p(item$SKU, style = "margin: 0;"),
-                  tags$p(
-                    tags$b("供应商:"),
-                    tags$span(item$Maker, style = "color: blue; font-weight: bold;"),
-                    style = "margin: 0;"
-                  ),
-                  tags$p(
-                    tags$b("请求数量:"),
-                    tags$span(item$Quantity, style = "color: red; font-weight: bold;"),
-                    style = "margin: 0;"
-                  )
-                )
-              ),
-              tags$div(
-                style = "width: 54%; height: 194px; border: 1px solid #ddd; padding: 5px; background-color: #fff; overflow-y: auto; border-radius: 5px;",
-                uiOutput(paste0("remarks_", item$RequestID))  # 使用 RequestID 动态绑定到具体记录
-              )
-            ),
-            
-            # 留言输入框和提交按钮
-            tags$div(
-              style = "width: 100%; display: flex; flex-direction: column; align-items: flex-start; margin-top: 5px;",
-              tags$div(
-                style = "width: 100%; display: flex; justify-content: space-between;",
-                textInput(paste0("remark_input_", request_id), NULL, placeholder = "输入留言", width = "72%"),
-                actionButton(paste0("submit_remark_", request_id), "提交", class = "btn-success", style = "width: 25%; height: 45px;")
-              )
-            ),
-            
-            # 状态按钮
-            tags$div(
-              style = "width: 100%; display: flex; gap: 5px; margin-top: 5px;",
-              
-              actionButton(paste0("mark_urgent_", request_id), "加急", class = "btn-danger", style = "flex-grow: 1; height: 45px;"),
-              
-              if (output_id == "purchase_request_board") {
-                actionButton(paste0("provider_arranged_", request_id), "安排", class = "btn-primary", style = "flex-grow: 1; height: 45px;")
-                
-              } else if (output_id == "provider_arranged_board") {
-                tagList(
-                  actionButton(paste0("done_paid_", request_id), "完成", class = "btn-primary", style = "flex-grow: 1; height: 45px;"),
-                  actionButton(paste0("provider_arranged_cancel_", request_id), "撤回", class = "btn-warning", style = "flex-grow: 1; height: 45px;")
-                )
-                
-              } else if (output_id == "done_paid_board") {
-                actionButton(paste0("done_paid_cancel_", request_id), "撤回", class = "btn-warning", style = "flex-grow: 1; height: 45px;")
-                
-              } else if (output_id %in% c("outbound_request_board", "new_product_board")) {
-                actionButton(paste0("complete_task_", request_id), "完成", class = "btn-primary", style = "flex-grow: 1; height: 45px;")
-              },
-              
-              actionButton(paste0("delete_request_", request_id), "删除", class = "btn-secondary", style = "flex-grow: 1; height: 45px;")
+        ),
+        tags$div(
+          style = "width: 54%; height: 194px; border: 1px solid #ddd; padding: 5px; background-color: #fff; overflow-y: auto; border-radius: 5px;",
+          uiOutput(paste0("remarks_", request_id))
+        )
+      ),
+      tags$div(
+        style = "width: 100%; display: flex; flex-direction: column; margin-top: 5px;",
+        tags$div(
+          style = "width: 100%; display: flex; justify-content: space-between;",
+          textInput(paste0("remark_input_", request_id), NULL, placeholder = "输入留言", width = "72%"),
+          actionButton(paste0("submit_remark_", request_id), "提交", class = "btn-success", style = "width: 25%; height: 45px;")
+        ),
+        tags$div(
+          style = "width: 100%; display: flex; gap: 5px; margin-top: 5px;",
+          actionButton(paste0("mark_urgent_", request_id), "加急", class = "btn-danger", style = "flex-grow: 1; height: 45px;"),
+          if (item$RequestType == "采购") {
+            actionButton(paste0("provider_arranged_", request_id), "安排", class = "btn-primary", style = "flex-grow: 1; height: 45px;")
+          } else if (item$RequestType == "安排") {
+            tagList(
+              actionButton(paste0("done_paid_", request_id), "完成", class = "btn-primary", style = "flex-grow: 1; height: 45px;"),
+              actionButton(paste0("provider_arranged_cancel_", request_id), "撤回", class = "btn-warning", style = "flex-grow: 1; height: 45px;")
             )
+          } else if (item$RequestType == "完成") {
+            tagList(
+              actionButton(paste0("stock_in_", request_id), "入库", class = "btn-success", style = "flex-grow: 1; height: 45px;"),
+              actionButton(paste0("done_paid_cancel_", request_id), "撤回", class = "btn-warning", style = "flex-grow: 1; height: 45px;")
+            )
+          } else if (item$RequestType == "新品") {
+            actionButton(paste0("complete_task_", request_id), "完成", class = "btn-primary", style = "flex-grow: 1; height: 45px;")
+          },
+          actionButton(paste0("delete_request_", request_id), "删除", class = "btn-secondary", style = "flex-grow: 1; height: 45px;")
+        )
+      )
+    )
+  })
+  
+  output[[paste0("remarks_", request_id)]] <- renderRemarks(request_id, requests)
+}
+
+# 定义一个 reactiveVal 跟踪已绑定的 RequestID
+bound_requests <- reactiveVal(character())
+
+# 绑定按钮事件
+bind_buttons <- function(request_id, requests_data, input, output, session, con) {
+  # 检查是否已绑定
+  current_bound <- bound_requests()
+  if (!request_id %in% current_bound) {
+    # 加急按钮
+    observeEvent(input[[paste0("mark_urgent_", request_id)]], {
+      dbExecute(con, "UPDATE requests SET RequestStatus = '紧急' WHERE RequestID = ?", params = list(request_id))
+      current_data <- requests_data()
+      updated_data <- current_data %>% mutate(RequestStatus = ifelse(RequestID == request_id, "紧急", RequestStatus))
+      requests_data(updated_data)
+      update_single_request(request_id, requests_data, output)
+    }, ignoreInit = TRUE)  # 移除 once = TRUE
+    
+    # 安排按钮
+    observeEvent(input[[paste0("provider_arranged_", request_id)]], {
+      dbExecute(con, "UPDATE requests SET RequestType = '安排' WHERE RequestID = ?", params = list(request_id))
+      current_data <- requests_data()
+      updated_data <- current_data %>% mutate(RequestType = ifelse(RequestID == request_id, "安排", RequestType))
+      requests_data(updated_data)
+      update_single_request(request_id, requests_data, output)
+    }, ignoreInit = TRUE)
+    
+    # 完成按钮
+    observeEvent(input[[paste0("done_paid_", request_id)]], {
+      dbExecute(con, "UPDATE requests SET RequestType = '完成' WHERE RequestID = ?", params = list(request_id))
+      current_data <- requests_data()
+      updated_data <- current_data %>% mutate(RequestType = ifelse(RequestID == request_id, "完成", RequestType))
+      requests_data(updated_data)
+      update_single_request(request_id, requests_data, output)
+    }, ignoreInit = TRUE)
+    
+    # 撤回（从安排到采购）
+    observeEvent(input[[paste0("provider_arranged_cancel_", request_id)]], {
+      dbExecute(con, "UPDATE requests SET RequestType = '采购' WHERE RequestID = ?", params = list(request_id))
+      current_data <- requests_data()
+      updated_data <- current_data %>% mutate(RequestType = ifelse(RequestID == request_id, "采购", RequestType))
+      requests_data(updated_data)
+      update_single_request(request_id, requests_data, output)
+    }, ignoreInit = TRUE)
+    
+    # 撤回（从完成到安排）
+    observeEvent(input[[paste0("done_paid_cancel_", request_id)]], {
+      dbExecute(con, "UPDATE requests SET RequestType = '安排' WHERE RequestID = ?", params = list(request_id))
+      current_data <- requests_data()
+      updated_data <- current_data %>% mutate(RequestType = ifelse(RequestID == request_id, "安排", RequestType))
+      requests_data(updated_data)
+      update_single_request(request_id, requests_data, output)
+    }, ignoreInit = TRUE)
+    
+    # 入库按钮（从完成到出库）
+    observeEvent(input[[paste0("stock_in_", request_id)]], {
+      dbExecute(con, "UPDATE requests SET RequestType = '出库', RequestStatus = '已完成' WHERE RequestID = ?", params = list(request_id))
+      current_data <- requests_data()
+      updated_data <- current_data %>% mutate(RequestType = ifelse(RequestID == request_id, "出库", RequestType),
+                                              RequestStatus = ifelse(RequestID == request_id, "已完成", RequestStatus))
+      requests_data(updated_data)
+      update_single_request(request_id, requests_data, output)
+    }, ignoreInit = TRUE)
+    
+    # 完成任务（新品）
+    observeEvent(input[[paste0("complete_task_", request_id)]], {
+      dbExecute(con, "UPDATE requests SET RequestStatus = '已完成' WHERE RequestID = ?", params = list(request_id))
+      current_data <- requests_data()
+      updated_data <- current_data %>% mutate(RequestStatus = ifelse(RequestID == request_id, "已完成", RequestStatus))
+      requests_data(updated_data)
+      update_single_request(request_id, requests_data, output)
+    }, ignoreInit = TRUE)
+    
+    # 删除按钮
+    observeEvent(input[[paste0("delete_request_", request_id)]], {
+      dbExecute(con, "DELETE FROM requests WHERE RequestID = ?", params = list(request_id))
+      current_data <- requests_data()
+      updated_data <- current_data %>% filter(RequestID != request_id)
+      requests_data(updated_data)
+      update_single_request(request_id, requests_data, output)
+    }, ignoreInit = TRUE)
+    
+    # 提交留言
+    observeEvent(input[[paste0("submit_remark_", request_id)]], {
+      remark <- input[[paste0("remark_input_", request_id)]]
+      req(remark != "")
+      
+      current_data <- requests_data()
+      new_remark <- format_remark(remark, system_type)
+      
+      # 解析 Quantity=X
+      quantity_match <- regmatches(remark, regexec("^Quantity=(\\d+)$", remark))
+      if (length(quantity_match[[1]]) > 1) {
+        new_quantity <- as.integer(quantity_match[[1]][2])
+        if (!is.na(new_quantity) && new_quantity > 0) {
+          dbExecute(con, "UPDATE requests SET Quantity = ? WHERE RequestID = ?", params = list(new_quantity, request_id))
+          updated_data <- current_data %>% mutate(Quantity = ifelse(RequestID == request_id, new_quantity, Quantity))
+          requests_data(updated_data)
+          update_single_request(request_id, requests_data, output)
+          showNotification(paste("请求数量已更新为", new_quantity, "！"), type = "message")
+          updateTextInput(session, paste0("remark_input_", request_id), value = "")
+        } else {
+          showNotification("无效的数量输入，请使用 'Quantity=X' 格式，X 为正整数。", type = "error")
+        }
+      } else if (length(maker_match <- regmatches(remark, regexec("^Maker=(.+)$", remark))[[1]]) > 1) {
+        new_maker <- trimws(maker_match[2])
+        if (nchar(new_maker) > 0) {
+          dbExecute(con, "UPDATE requests SET Maker = ? WHERE RequestID = ?", params = list(new_maker, request_id))
+          updated_data <- current_data %>% mutate(Maker = ifelse(RequestID == request_id, new_maker, Maker))
+          requests_data(updated_data)
+          update_single_request(request_id, requests_data, output)
+          showNotification(paste("供应商已更新为", new_maker, "！"), type = "message")
+          updateTextInput(session, paste0("remark_input_", request_id), value = "")
+        } else {
+          showNotification("无效的供应商输入，请使用 'Maker=XXX' 格式。", type = "error")
+        }
+      } else {
+        current_row <- current_data %>% filter(RequestID == request_id)
+        current_remarks <- current_row %>% pull(Remarks)
+        updated_remarks <- ifelse(is.na(current_remarks) || current_remarks == "", new_remark, paste(new_remark, current_remarks, sep = ";"))
+        
+        dbExecute(con, "UPDATE requests SET Remarks = ? WHERE RequestID = ?", params = list(updated_remarks, request_id))
+        updated_data <- current_data %>% mutate(Remarks = ifelse(RequestID == request_id, updated_remarks, Remarks))
+        requests_data(updated_data)
+        update_single_request(request_id, requests_data, output)
+        updateTextInput(session, paste0("remark_input_", request_id), value = "")
+      }
+    }, ignoreInit = TRUE)
+    
+    # 更新已绑定列表
+    bound_requests(unique(c(current_bound, request_id)))
+  }
+}
+
+# 渲染留言板
+renderRemarks <- function(request_id, requests) {
+  current_remarks <- requests %>% filter(RequestID == request_id) %>% pull(Remarks)
+  
+  if (is.null(current_remarks) || is.na(current_remarks) || current_remarks == "") {
+    remarks <- list()
+  } else {
+    remarks <- unlist(strsplit(trimws(current_remarks), ";"))
+  }
+  
+  # 使用 reactiveVal 缓存渲染结果
+  renderUI({
+    if (length(remarks) > 0) {
+      tags$div(
+        lapply(remarks, function(h) {
+          split_remarks <- strsplit(h, ": ", fixed = TRUE)[[1]]
+          remark_time <- ifelse(length(split_remarks) > 1, split_remarks[1], "")
+          remark_text <- ifelse(length(split_remarks) > 1, split_remarks[2], split_remarks[1])
+          
+          tags$div(
+            style = "margin-bottom: 8px;",
+            tags$p(remark_time, style = "font-size: 10px; color: grey; text-align: right; margin: 0;"),
+            tags$p(remark_text, style = "font-size: 12px; color: black; text-align: left; margin: 0;")
           )
         })
       )
-    })
-  }
+    } else {
+      tags$p("暂无留言", style = "font-size: 12px; color: grey;")
+    }
+  })
 }
+
+# 协作便签渲染函数：根据传入的请求数据和输出目标动态生成 UI
+# render_request_board <- function(requests, output_id, output) {
+#   if (nrow(requests) == 0) {
+#     output[[output_id]] <- renderUI({
+#       div(style = "text-align: center; color: grey; margin-top: 20px;", tags$p("当前没有待处理事项"))
+#     })
+#   } else {
+#     output[[output_id]] <- renderUI({
+#       div(
+#         style = "display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); row-gap: 15px; column-gap: 15px; padding: 5px;",
+#         lapply(1:nrow(requests), function(i) {
+#           item <- requests[i, , drop = FALSE]
+#           request_id <- item$RequestID
+#           
+#           # 根据状态设置便签背景颜色和边框颜色
+#           card_colors <- switch(
+#             item$RequestStatus,
+#             "紧急" = list(bg = "#ffcdd2", border = "#e57373"),    # 红色背景，深红色边框
+#             "待处理" = list(bg = "#fff9c4", border = "#ffd54f"),  # 橙色背景，深橙色边框
+#             "已完成" = list(bg = "#c8e6c9", border = "#81c784"),   # 绿色背景，深绿色边框
+#             list(bg = "#f0f0f0", border = "#bdbdbd")  # 默认灰色
+#           )
+#           
+#           # 渲染便签卡片
+#           div(
+#             class = "note-card",
+#             style = sprintf("
+#               position: relative;
+#               width: 300px;
+#               background-color: %s;
+#               border: 2px solid %s;
+#               border-radius: 10px;
+#               box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+#               padding: 10px;
+#               display: flex;
+#               flex-direction: column;
+#               justify-content: space-between;
+#             ", card_colors$bg, card_colors$border),
+#             
+#             # 图片和留言记录
+#             div(
+#               style = "display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;",
+#               tags$div(
+#                 style = "width: 42%; display: flex; flex-direction: column; align-items: center;",
+#                 tags$img(
+#                   src = ifelse(is.na(item$ItemImagePath), placeholder_150px_path, paste0(host_url, "/images/", basename(item$ItemImagePath))),
+#                   style = "width: 100%; max-height: 120px; object-fit: contain; box-shadow: 0px 4px 6px rgba(0,0,0,0.1); border-radius: 5px; margin-bottom: 5px; cursor: pointer;",
+#                   
+#                   onclick = sprintf("Shiny.setInputValue('view_request_image', '%s')", 
+#                                     ifelse(is.na(item$ItemImagePath), placeholder_150px_path, paste0(host_url, "/images/", basename(item$ItemImagePath)))),
+#                   
+#                   onmouseover = sprintf("showInventoryStatus(event, '%s')", item$SKU),
+#                   onmouseout = "hideInventoryStatus()"
+#                 ),
+#                 tags$div(
+#                   style = "width: 100%; text-align: center; font-size: 12px; color: #333;",
+#                   tags$p(tags$b(item$ItemDescription), style = "margin: 0;"),
+#                   tags$p(item$SKU, style = "margin: 0;"),
+#                   tags$p(
+#                     tags$b("供应商:"),
+#                     tags$span(item$Maker, style = "color: blue; font-weight: bold;"),
+#                     style = "margin: 0;"
+#                   ),
+#                   tags$p(
+#                     tags$b("请求数量:"),
+#                     tags$span(item$Quantity, style = "color: red; font-weight: bold;"),
+#                     style = "margin: 0;"
+#                   )
+#                 )
+#               ),
+#               tags$div(
+#                 style = "width: 54%; height: 194px; border: 1px solid #ddd; padding: 5px; background-color: #fff; overflow-y: auto; border-radius: 5px;",
+#                 uiOutput(paste0("remarks_", item$RequestID))  # 使用 RequestID 动态绑定到具体记录
+#               )
+#             ),
+#             
+#             # 留言输入框和提交按钮
+#             tags$div(
+#               style = "width: 100%; display: flex; flex-direction: column; align-items: flex-start; margin-top: 5px;",
+#               tags$div(
+#                 style = "width: 100%; display: flex; justify-content: space-between;",
+#                 textInput(paste0("remark_input_", request_id), NULL, placeholder = "输入留言", width = "72%"),
+#                 actionButton(paste0("submit_remark_", request_id), "提交", class = "btn-success", style = "width: 25%; height: 45px;")
+#               )
+#             ),
+#             
+#             # 状态按钮
+#             tags$div(
+#               style = "width: 100%; display: flex; gap: 5px; margin-top: 5px;",
+#               
+#               actionButton(paste0("mark_urgent_", request_id), "加急", class = "btn-danger", style = "flex-grow: 1; height: 45px;"),
+#               
+#               if (output_id == "purchase_request_board") {
+#                 actionButton(paste0("provider_arranged_", request_id), "安排", class = "btn-primary", style = "flex-grow: 1; height: 45px;")
+#                 
+#               } else if (output_id == "provider_arranged_board") {
+#                 tagList(
+#                   actionButton(paste0("done_paid_", request_id), "完成", class = "btn-primary", style = "flex-grow: 1; height: 45px;"),
+#                   actionButton(paste0("provider_arranged_cancel_", request_id), "撤回", class = "btn-warning", style = "flex-grow: 1; height: 45px;")
+#                 )
+#                 
+#               } else if (output_id == "done_paid_board") {
+#                 actionButton(paste0("done_paid_cancel_", request_id), "撤回", class = "btn-warning", style = "flex-grow: 1; height: 45px;")
+#                 
+#               } else if (output_id %in% c("outbound_request_board", "new_product_board")) {
+#                 actionButton(paste0("complete_task_", request_id), "完成", class = "btn-primary", style = "flex-grow: 1; height: 45px;")
+#               },
+#               
+#               actionButton(paste0("delete_request_", request_id), "删除", class = "btn-secondary", style = "flex-grow: 1; height: 45px;")
+#             )
+#           )
+#         })
+#       )
+#     })
+#   }
+# }
 
 # # 渲染留言板
 # renderRemarks <- function(request_id, requests) {
@@ -2372,50 +2669,50 @@ render_request_board <- function(requests, output_id, output) {
 #   })
 # }
 
-# 渲染任务板与便签
-refresh_board <- function(requests, output) {
-  # 定义 RequestType 与对应的 UI 输出 ID
-  request_types <- list(
-    "新品" = "new_product_board",
-    "采购" = "purchase_request_board",
-    "安排" = "provider_arranged_board",
-    "完成" = "done_paid_board",
-    "出库" = "outbound_request_board"
-  )
-  
-  # 如果 requests 是空数据帧，则清空所有面板
-  if (nrow(requests) == 0) {
-    lapply(request_types, function(output_id) {
-      output[[output_id]] <- renderUI({
-        div(style = "text-align: center; color: grey; margin-top: 20px;", tags$p("当前没有待处理事项"))
-      })
-    })
-    return()  # 直接返回，跳过后续逻辑
-  }
-  
-  # 定义排序函数
-  sort_requests <- function(df) {
-    df %>%
-      arrange(
-        factor(RequestStatus, levels = c("紧急", "待处理", "已完成")),
-        Maker,  # 让同一供应商的请求排在一起
-        CreatedAt
-      )
-  }
-  
-  # 遍历不同的 RequestType，筛选、排序并渲染 UI
-  lapply(names(request_types), function(req_type) {
-    output_id <- request_types[[req_type]]
-    filtered_requests <- requests %>% filter(RequestType == req_type) %>% sort_requests()
-    
-    # 处理 UI 渲染
-    if (nrow(filtered_requests) == 0) {
-      render_request_board(data.frame(), output_id, output)  # 清空面板
-    } else {
-      render_request_board(filtered_requests, output_id, output)  # 渲染面板
-    }
-  })
-}
+# # 渲染任务板与便签
+# refresh_board <- function(requests, output) {
+#   # 定义 RequestType 与对应的 UI 输出 ID
+#   request_types <- list(
+#     "新品" = "new_product_board",
+#     "采购" = "purchase_request_board",
+#     "安排" = "provider_arranged_board",
+#     "完成" = "done_paid_board",
+#     "出库" = "outbound_request_board"
+#   )
+#   
+#   # 如果 requests 是空数据帧，则清空所有面板
+#   if (nrow(requests) == 0) {
+#     lapply(request_types, function(output_id) {
+#       output[[output_id]] <- renderUI({
+#         div(style = "text-align: center; color: grey; margin-top: 20px;", tags$p("当前没有待处理事项"))
+#       })
+#     })
+#     return()  # 直接返回，跳过后续逻辑
+#   }
+#   
+#   # 定义排序函数
+#   sort_requests <- function(df) {
+#     df %>%
+#       arrange(
+#         factor(RequestStatus, levels = c("紧急", "待处理", "已完成")),
+#         Maker,  # 让同一供应商的请求排在一起
+#         CreatedAt
+#       )
+#   }
+#   
+#   # 遍历不同的 RequestType，筛选、排序并渲染 UI
+#   lapply(names(request_types), function(req_type) {
+#     output_id <- request_types[[req_type]]
+#     filtered_requests <- requests %>% filter(RequestType == req_type) %>% sort_requests()
+#     
+#     # 处理 UI 渲染
+#     if (nrow(filtered_requests) == 0) {
+#       render_request_board(data.frame(), output_id, output)  # 清空面板
+#     } else {
+#       render_request_board(filtered_requests, output_id, output)  # 渲染面板
+#     }
+#   })
+# }
 
 # # 绑定便签按钮
 # bind_buttons <- function(request_id, requests, input, output, session, con) {
@@ -2513,17 +2810,17 @@ refresh_board <- function(requests, output) {
 #   }, ignoreInit = TRUE)
 # }
 
-# 生成格式化的便签留言
-format_remark <- function(raw_remark, system_type) {
-  if (is.null(raw_remark) || raw_remark == "") {
-    return(NA_character_)
-  }
-  
-  remark_prefix <- if (system_type == "cn") "[京]" else "[圳]"  # 根据系统类型添加前缀
-  formatted_remark <- paste0(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), ": ", remark_prefix, " ", raw_remark)
-  
-  return(formatted_remark)
-}
+# # 生成格式化的便签留言
+# format_remark <- function(raw_remark, system_type) {
+#   if (is.null(raw_remark) || raw_remark == "") {
+#     return(NA_character_)
+#   }
+#   
+#   remark_prefix <- if (system_type == "cn") "[京]" else "[圳]"  # 根据系统类型添加前缀
+#   formatted_remark <- paste0(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), ": ", remark_prefix, " ", raw_remark)
+#   
+#   return(formatted_remark)
+# }
 
 # 库存数计算
 process_data <- function(dat) {
