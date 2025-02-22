@@ -2447,7 +2447,7 @@ bind_buttons <- function(request_id, requests, input, output, session, con) {
   observeEvent(input[[paste0("delete_request_", request_id)]], {
     dbExecute(con, "DELETE FROM requests WHERE RequestID = ?", params = list(request_id))
     new_requests <- dbGetQuery(con, "SELECT * FROM requests")  # 重新获取最新数据
-    refresh_board(requests, output)
+    refresh_board(new_requests, output)
   }, ignoreInit = TRUE)
   
   observeEvent(input[[paste0("submit_remark_", request_id)]], {
