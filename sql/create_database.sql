@@ -130,6 +130,16 @@ CREATE TABLE `requests` (
   PRIMARY KEY (`RequestID`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 
+CREATE TABLE `update_log` (
+  `table_name` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `last_updated` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`table_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+-- 初始化 requests 的记录
+INSERT INTO update_log (table_name) VALUES ('unique_items');
+INSERT INTO update_log (table_name) VALUES ('requests');
+
 DELIMITER //
 
 CREATE TRIGGER before_transaction_insert
