@@ -2331,46 +2331,46 @@ render_request_board <- function(requests, output_id, output) {
   }
 }
 
-# 渲染留言板
-renderRemarks <- function(request_id, requests) {
-  # 提取当前 RequestID 的 Remarks
-  current_remarks <- requests %>% filter(RequestID == request_id) %>% pull(Remarks)
-  
-  # 如果当前 Remarks 为空或 NULL，则初始化为空列表
-  if (is.null(current_remarks) || is.na(current_remarks) || current_remarks == "") {
-    remarks <- list()  # 如果为空，则返回空列表
-  } else {
-    remarks <- unlist(strsplit(trimws(current_remarks), ";"))  # 使用 ; 分隔记录
-  }
-  
-  # 生成 HTML 字符串
-  remarks_html <- if (length(remarks) > 0) {
-    paste0(
-      lapply(remarks, function(h) {
-        # 将记录拆分为时间和内容
-        split_remarks <- strsplit(h, ": ", fixed = TRUE)[[1]]
-        remark_time <- ifelse(length(split_remarks) > 1, split_remarks[1], "")  # 时间部分
-        remark_text <- ifelse(length(split_remarks) > 1, split_remarks[2], split_remarks[1])  # 信息部分
-        
-        # 生成每条记录的 HTML
-        paste0(
-          "<div style='margin-bottom: 8px;'>",
-          "<p style='font-size: 10px; color: grey; text-align: right; margin: 0;'>", remark_time, "</p>",  # 时间灰色右对齐
-          "<p style='font-size: 12px; color: black; text-align: left; margin: 0;'>", remark_text, "</p>",  # 信息黑色左对齐
-          "</div>"
-        )
-      }),
-      collapse = ""
-    )
-  } else {
-    "<p style='font-size: 12px; color: grey;'>暂无留言</p>"  # 无记录时的默认内容
-  }
-  
-  # 渲染 HTML
-  renderUI({
-    HTML(remarks_html)
-  })
-}
+# # 渲染留言板
+# renderRemarks <- function(request_id, requests) {
+#   # 提取当前 RequestID 的 Remarks
+#   current_remarks <- requests %>% filter(RequestID == request_id) %>% pull(Remarks)
+#   
+#   # 如果当前 Remarks 为空或 NULL，则初始化为空列表
+#   if (is.null(current_remarks) || is.na(current_remarks) || current_remarks == "") {
+#     remarks <- list()  # 如果为空，则返回空列表
+#   } else {
+#     remarks <- unlist(strsplit(trimws(current_remarks), ";"))  # 使用 ; 分隔记录
+#   }
+#   
+#   # 生成 HTML 字符串
+#   remarks_html <- if (length(remarks) > 0) {
+#     paste0(
+#       lapply(remarks, function(h) {
+#         # 将记录拆分为时间和内容
+#         split_remarks <- strsplit(h, ": ", fixed = TRUE)[[1]]
+#         remark_time <- ifelse(length(split_remarks) > 1, split_remarks[1], "")  # 时间部分
+#         remark_text <- ifelse(length(split_remarks) > 1, split_remarks[2], split_remarks[1])  # 信息部分
+#         
+#         # 生成每条记录的 HTML
+#         paste0(
+#           "<div style='margin-bottom: 8px;'>",
+#           "<p style='font-size: 10px; color: grey; text-align: right; margin: 0;'>", remark_time, "</p>",  # 时间灰色右对齐
+#           "<p style='font-size: 12px; color: black; text-align: left; margin: 0;'>", remark_text, "</p>",  # 信息黑色左对齐
+#           "</div>"
+#         )
+#       }),
+#       collapse = ""
+#     )
+#   } else {
+#     "<p style='font-size: 12px; color: grey;'>暂无留言</p>"  # 无记录时的默认内容
+#   }
+#   
+#   # 渲染 HTML
+#   renderUI({
+#     HTML(remarks_html)
+#   })
+# }
 
 # 渲染任务板与便签
 refresh_board <- function(requests, output) {
@@ -2417,101 +2417,101 @@ refresh_board <- function(requests, output) {
   })
 }
 
-# 绑定便签按钮
-bind_buttons <- function(request_id, requests, input, output, session, con) {
-  # 按钮绑定逻辑
-  observeEvent(input[[paste0("mark_urgent_", request_id)]], {
-    dbExecute(con, "UPDATE requests SET RequestStatus = '紧急' WHERE RequestID = ?", params = list(request_id))
-  }, ignoreInit = TRUE)  # 避免初始绑定时触发事件
-  
-  observeEvent(input[[paste0("provider_arranged_", request_id)]], {
-    dbExecute(con, "UPDATE requests SET RequestType = '安排' WHERE RequestID = ?", params = list(request_id))
-  }, ignoreInit = TRUE)
-  
-  observeEvent(input[[paste0("provider_arranged_cancel_", request_id)]], {
-    dbExecute(con, "UPDATE requests SET RequestType = '采购' WHERE RequestID = ?", params = list(request_id))
-  }, ignoreInit = TRUE)
-  
-  observeEvent(input[[paste0("done_paid_", request_id)]], {
-    dbExecute(con, "UPDATE requests SET RequestType = '付款', RequestStatus = '已完成' WHERE RequestID = ?", params = list(request_id))
-  }, ignoreInit = TRUE)
-  
-  observeEvent(input[[paste0("done_paid_cancel_", request_id)]], {
-    dbExecute(con, "UPDATE requests SET RequestType = '安排', RequestStatus = '待处理' WHERE RequestID = ?", params = list(request_id))
-  }, ignoreInit = TRUE)
-  
-  observeEvent(input[[paste0("complete_task_", request_id)]], {
-    dbExecute(con, "UPDATE requests SET RequestStatus = '已完成' WHERE RequestID = ?", params = list(request_id))
-  }, ignoreInit = TRUE)
-  
-  observeEvent(input[[paste0("delete_request_", request_id)]], {
-    dbExecute(con, "DELETE FROM requests WHERE RequestID = ?", params = list(request_id))
-    new_requests <- dbGetQuery(con, "SELECT * FROM requests")  # 重新获取最新数据
-    refresh_board(new_requests, output)
-  }, ignoreInit = TRUE)
-  
-  observeEvent(input[[paste0("submit_remark_", request_id)]], {
-    remark <- input[[paste0("remark_input_", request_id)]]
-    req(remark != "")
-    
-    new_remark <- format_remark(remark, system_type)
-    
-    # 解析 `Quantity=X`
-    quantity_match <- regmatches(remark, regexec("^Quantity=(\\d+)$", remark))
-    
-    # 解析 `Maker=XXX`
-    maker_match <- regmatches(remark, regexec("^Maker=(.+)$", remark))
-    
-    if (length(quantity_match[[1]]) > 1) {
-      # 提取 X 值并转换为整数
-      new_quantity <- as.integer(quantity_match[[1]][2])
-      
-      if (!is.na(new_quantity) && new_quantity > 0) {
-        # 更新数据库中的 Quantity
-        dbExecute(con, "UPDATE requests SET Quantity = ? WHERE RequestID = ?", params = list(new_quantity, request_id))
-        
-        # 重新获取最新数据
-        updated_requests <- dbGetQuery(con, "SELECT * FROM requests")
-        refresh_board(updated_requests, output)
-        
-        showNotification(paste("请求数量已更新为", new_quantity, "！"), type = "message")
-      } else {
-        showNotification("无效的数量输入，请使用 'Quantity=X' 格式，X 为正整数。", type = "error")
-      }
-    } else if (length(maker_match[[1]]) > 1) {
-      # 提取供应商名称
-      new_maker <- trimws(maker_match[[1]][2])
-      
-      if (nchar(new_maker) > 0) {
-        # 更新数据库中的 Maker
-        dbExecute(con, "UPDATE requests SET Maker = ? WHERE RequestID = ?", params = list(new_maker, request_id))
-        
-        # 重新获取最新数据
-        updated_requests <- dbGetQuery(con, "SELECT * FROM requests")
-        refresh_board(updated_requests, output)
-        
-        showNotification(paste("供应商已更新为", new_maker, "！"), type = "message")
-      } else {
-        showNotification("无效的供应商输入，请使用 'Maker=XXX' 格式。", type = "error")
-      }
-    } else {
-      # 更新数据库中的 Remarks 字段
-      current_remarks <- requests %>% filter(RequestID == request_id) %>% pull(Remarks)
-      current_remarks_text <- ifelse(is.na(current_remarks), "", current_remarks)
-      updated_remarks <- if (current_remarks_text == "") new_remark else paste(new_remark, current_remarks_text, sep = ";")
-      
-      dbExecute(con, "UPDATE requests SET Remarks = ? WHERE RequestID = ?", params = list(updated_remarks, request_id))
-      
-      # 动态更新 UI
-      output[[paste0("remarks_", request_id)]] <- renderUI({
-        renderRemarks(request_id, requests)
-      })
-    }
-    
-    # 清空输入框
-    updateTextInput(session, paste0("remark_input_", request_id), value = "")
-  }, ignoreInit = TRUE)
-}
+# # 绑定便签按钮
+# bind_buttons <- function(request_id, requests, input, output, session, con) {
+#   # 按钮绑定逻辑
+#   observeEvent(input[[paste0("mark_urgent_", request_id)]], {
+#     dbExecute(con, "UPDATE requests SET RequestStatus = '紧急' WHERE RequestID = ?", params = list(request_id))
+#   }, ignoreInit = TRUE)  # 避免初始绑定时触发事件
+#   
+#   observeEvent(input[[paste0("provider_arranged_", request_id)]], {
+#     dbExecute(con, "UPDATE requests SET RequestType = '安排' WHERE RequestID = ?", params = list(request_id))
+#   }, ignoreInit = TRUE)
+#   
+#   observeEvent(input[[paste0("provider_arranged_cancel_", request_id)]], {
+#     dbExecute(con, "UPDATE requests SET RequestType = '采购' WHERE RequestID = ?", params = list(request_id))
+#   }, ignoreInit = TRUE)
+#   
+#   observeEvent(input[[paste0("done_paid_", request_id)]], {
+#     dbExecute(con, "UPDATE requests SET RequestType = '付款', RequestStatus = '已完成' WHERE RequestID = ?", params = list(request_id))
+#   }, ignoreInit = TRUE)
+#   
+#   observeEvent(input[[paste0("done_paid_cancel_", request_id)]], {
+#     dbExecute(con, "UPDATE requests SET RequestType = '安排', RequestStatus = '待处理' WHERE RequestID = ?", params = list(request_id))
+#   }, ignoreInit = TRUE)
+#   
+#   observeEvent(input[[paste0("complete_task_", request_id)]], {
+#     dbExecute(con, "UPDATE requests SET RequestStatus = '已完成' WHERE RequestID = ?", params = list(request_id))
+#   }, ignoreInit = TRUE)
+#   
+#   observeEvent(input[[paste0("delete_request_", request_id)]], {
+#     dbExecute(con, "DELETE FROM requests WHERE RequestID = ?", params = list(request_id))
+#     new_requests <- dbGetQuery(con, "SELECT * FROM requests")  # 重新获取最新数据
+#     refresh_board(new_requests, output)
+#   }, ignoreInit = TRUE)
+#   
+#   observeEvent(input[[paste0("submit_remark_", request_id)]], {
+#     remark <- input[[paste0("remark_input_", request_id)]]
+#     req(remark != "")
+#     
+#     new_remark <- format_remark(remark, system_type)
+#     
+#     # 解析 `Quantity=X`
+#     quantity_match <- regmatches(remark, regexec("^Quantity=(\\d+)$", remark))
+#     
+#     # 解析 `Maker=XXX`
+#     maker_match <- regmatches(remark, regexec("^Maker=(.+)$", remark))
+#     
+#     if (length(quantity_match[[1]]) > 1) {
+#       # 提取 X 值并转换为整数
+#       new_quantity <- as.integer(quantity_match[[1]][2])
+#       
+#       if (!is.na(new_quantity) && new_quantity > 0) {
+#         # 更新数据库中的 Quantity
+#         dbExecute(con, "UPDATE requests SET Quantity = ? WHERE RequestID = ?", params = list(new_quantity, request_id))
+#         
+#         # 重新获取最新数据
+#         updated_requests <- dbGetQuery(con, "SELECT * FROM requests")
+#         refresh_board(updated_requests, output)
+#         
+#         showNotification(paste("请求数量已更新为", new_quantity, "！"), type = "message")
+#       } else {
+#         showNotification("无效的数量输入，请使用 'Quantity=X' 格式，X 为正整数。", type = "error")
+#       }
+#     } else if (length(maker_match[[1]]) > 1) {
+#       # 提取供应商名称
+#       new_maker <- trimws(maker_match[[1]][2])
+#       
+#       if (nchar(new_maker) > 0) {
+#         # 更新数据库中的 Maker
+#         dbExecute(con, "UPDATE requests SET Maker = ? WHERE RequestID = ?", params = list(new_maker, request_id))
+#         
+#         # 重新获取最新数据
+#         updated_requests <- dbGetQuery(con, "SELECT * FROM requests")
+#         refresh_board(updated_requests, output)
+#         
+#         showNotification(paste("供应商已更新为", new_maker, "！"), type = "message")
+#       } else {
+#         showNotification("无效的供应商输入，请使用 'Maker=XXX' 格式。", type = "error")
+#       }
+#     } else {
+#       # 更新数据库中的 Remarks 字段
+#       current_remarks <- requests %>% filter(RequestID == request_id) %>% pull(Remarks)
+#       current_remarks_text <- ifelse(is.na(current_remarks), "", current_remarks)
+#       updated_remarks <- if (current_remarks_text == "") new_remark else paste(new_remark, current_remarks_text, sep = ";")
+#       
+#       dbExecute(con, "UPDATE requests SET Remarks = ? WHERE RequestID = ?", params = list(updated_remarks, request_id))
+#       
+#       # 动态更新 UI
+#       output[[paste0("remarks_", request_id)]] <- renderUI({
+#         renderRemarks(request_id, requests)
+#       })
+#     }
+#     
+#     # 清空输入框
+#     updateTextInput(session, paste0("remark_input_", request_id), value = "")
+#   }, ignoreInit = TRUE)
+# }
 
 # 生成格式化的便签留言
 format_remark <- function(raw_remark, system_type) {
