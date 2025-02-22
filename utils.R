@@ -2511,6 +2511,18 @@ renderRemarks <- function(request_id, requests) {
   })
 }
 
+# 生成格式化的便签留言
+format_remark <- function(raw_remark, system_type) {
+  if (is.null(raw_remark) || raw_remark == "") {
+    return(NA_character_)
+  }
+
+  remark_prefix <- if (system_type == "cn") "[京]" else "[圳]"  # 根据系统类型添加前缀
+  formatted_remark <- paste0(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), ": ", remark_prefix, " ", raw_remark)
+
+  return(formatted_remark)
+}
+
 # 库存数计算
 process_data <- function(dat) {
   domestic <- dat %>% filter(Status == "国内入库")
@@ -2578,8 +2590,8 @@ speak_text <- function(text) {
 }
 
 # 自定义函数
-`%||%` <- function(a, b) {
-  if (!is.null(a)) a else b
+`%||%` <- function(x, y) {
+  if (is.null(x) || length(x) == 0) y else x
 }
 
 # 加载时清除无效和冗余的状态流转记录
