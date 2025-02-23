@@ -25,13 +25,10 @@ export_barcode_pdf <- function(sku, page_width, page_height, unit = "in", output
     page_height <- page_height / 2.54
   }
   
-  # 直接使用提供的 output_file 作为目标路径
-  pdf_path <- output_file
-  
   # 调用 custom_create_PDF 生成 PDF
   custom_create_PDF(
     Labels = sku,
-    name = pdf_path,
+    name = output_file,
     type = "linear",
     page_width = page_width,
     page_height = page_height,
@@ -41,7 +38,7 @@ export_barcode_pdf <- function(sku, page_width, page_height, unit = "in", output
     height_margin = 0.05
   )
   
-  return(pdf_path)
+  return(paste0(output_file, ".pdf"))
 }
 
 # 获得图片宽高比
