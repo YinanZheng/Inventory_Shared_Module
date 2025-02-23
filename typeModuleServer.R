@@ -75,11 +75,11 @@ typeModuleServer <- function(id, con, item_type_data) {
         title = "批量新增大类",
         fluidRow(
           column(6, textAreaInput(ns("new_major_types"), "大类名称:", placeholder = "每行一个大类名称")),
-          column(6, textAreaInput(ns("new_major_skus"), "大类SKU:", placeholder = "每行一个SKU，与左侧名称一一对应"))
+          column(6, textAreaInput(ns("new_major_skus"), "大类SKU:", placeholder = "每行一个SKU，与左侧名称对应"))
         ),
         footer = tagList(
-          modalButton("取消"),
-          actionButton(ns("confirm_add_major_types"), "添加")
+          actionButton(ns("confirm_add_major_types"), "添加", class = "btn-primary"),
+          modalButton("取消")
         )
       ))
     })
