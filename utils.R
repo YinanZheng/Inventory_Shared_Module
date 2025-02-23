@@ -1703,13 +1703,13 @@ register_order <- function(order_id, customer_name, customer_netname, platform, 
       
       if (nrow(existing_order) > 0) {
         existing_notes <- existing_order$OrderNotes[1] %||% ""  # 确保为长度为 1 的字符
-        if (grepl(supplier_prefix, existing_notes)) {
-          order_notes <- gsub(
-            paste0(supplier_prefix, ".*?；"),
-            new_supplier_note,
-            existing_notes
-          )
+        
+        # 检查是否包含分号，若包含则只保留分号后的内容
+        if (grepl(";", existing_notes)) {
+          user_notes <- sub(".*；", "", existing_notes)  # 提取分号后的内容
+          order_notes <- paste0(new_supplier_note, user_notes)  # 与新备注拼接
         } else {
+          # 如果没有分号，保留原有内容（假设全为用户输入）
           order_notes <- paste0(new_supplier_note, existing_notes)
         }
       } else {
