@@ -9,19 +9,19 @@ typeModuleServer <- function(id, con, item_type_data) {
       if (is.null(type_data) || nrow(type_data) == 0) {
         selectizeInput(
           ns("new_major_type"), 
-          "大类:", 
+          "大类", 
           choices = NULL, 
           width = "100%", 
           options = list(placeholder = "暂无数据", maxOptions = 500)
         )      
       } else {
         choices <- setNames(
-          unique(type_data$MajorType), 
-          paste0(unique(type_data$MajorType), "（", unique(type_data$MajorTypeSKU), "）")
+          c("", unique(type_data$MajorType)),  # 在值中添加空选项
+          c("请选择", paste0(unique(type_data$MajorType), "（", unique(type_data$MajorTypeSKU), "）"))  # 在名称中添加对应提示
         )
         selectizeInput(
           ns("new_major_type"), 
-          "大类:", 
+          "大类", 
           choices = choices, 
           width = "100%", 
           options = list(placeholder = "选择或搜索大类", maxOptions = 500)
@@ -37,7 +37,7 @@ typeModuleServer <- function(id, con, item_type_data) {
       if (is.null(type_data) || nrow(type_data) == 0 || is.null(selected_major)) {
         selectizeInput(
           ns("new_minor_type"), 
-          "小类:", 
+          "小类", 
           choices = NULL, 
           width = "100%", 
           options = list(placeholder = "暂无数据", maxOptions = 500)
@@ -48,19 +48,19 @@ typeModuleServer <- function(id, con, item_type_data) {
           # 处理无匹配数据的情况
           selectizeInput(
             ns("new_minor_type"), 
-            "小类:", 
+            "小类", 
             choices = NULL, 
             width = "100%", 
             options = list(placeholder = "暂无匹配的小类", maxOptions = 500)
           )
         } else {
           choices <- setNames(
-            filtered_data$MinorType, 
-            paste0(filtered_data$MinorType, "（", filtered_data$MinorTypeSKU, "）")
+            c("", unique(type_data$MinorType)),  # 在值中添加空选项
+            c("请选择", paste0(unique(type_data$MinorType), "（", unique(type_data$MinorTypeSKU), "）"))  # 在名称中添加对应提示
           )
           selectizeInput(
             ns("new_minor_type"), 
-            "小类:", 
+            "小类", 
             choices = choices, 
             width = "100%", 
             options = list(placeholder = "选择或搜索小类", maxOptions = 500)
