@@ -17,7 +17,7 @@ export_barcode_pdf <- function(sku, page_width, page_height, unit = "in", output
     sku <- as.character(sku)
   }
   sku <- sku[!is.na(sku) & sku != ""]
-  req(length(sku) > 0, "无效的 SKU 数据")
+  req(length(sku) > 0)
   
   # 如果单位是厘米，转换为英寸
   if (unit == "cm") {
@@ -28,13 +28,18 @@ export_barcode_pdf <- function(sku, page_width, page_height, unit = "in", output
   # 直接使用提供的 output_file 作为目标路径
   pdf_path <- output_file
   
-  # 生成 PDF
-  pdf(pdf_path, width = page_width, height = page_height)
-  for (s in sku) {
-    barcode_image <- barcode::code128(s)
-    plot(barcode_image)
-  }
-  dev.off()
+  # 调用 custom_create_PDF 生成 PDF
+  custom_create_PDF(
+    Labels = sku,
+    name = pdf_path,
+    type = "linear",
+    page_width = page_width,
+    page_height = page_height,
+    numrow = 1,
+    numcol = 1,
+    width_margin = 0,
+    height_margin = 0.05
+  )
   
   return(pdf_path)
 }
