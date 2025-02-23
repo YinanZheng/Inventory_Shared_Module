@@ -3,7 +3,7 @@ itemFilterUI <- function(
     border_color = "#007BFF", 
     text_color = "#007BFF", 
     use_status = TRUE,
-    status_choices = c("全部" = "", "采购", "国内入库", "国内出库", "国内售出", "美国入库", "美国发货", "美国调货", "退货"), 
+    status_choices = c("库存状态" = "", "采购", "国内入库", "国内出库", "国内售出", "美国入库", "美国发货", "美国调货", "退货"), 
     use_purchase_date = TRUE, 
     use_sold_date = FALSE, 
     use_exit_date = FALSE
@@ -35,15 +35,15 @@ itemFilterUI <- function(
       if (use_status) {
         fluidRow(
           column(7, 
-                 selectizeInput(ns("maker"), "供应商", choices = NULL, width = "100%",
-                                options = list(placeholder = '名称(拼音)...', 
+                 selectizeInput(ns("maker"), NULL, choices = NULL, width = "100%",
+                                options = list(placeholder = '供应商', 
                                                maxOptions = 500,
                                                create = FALSE))
           ),
           column(5, 
                  selectInput(
                    inputId = ns("status"),
-                   label = "库存状态",
+                   NULL,
                    choices = status_choices,
                    selected = "",
                    width = "100%"
@@ -53,8 +53,8 @@ itemFilterUI <- function(
       } else {
         fluidRow(
           column(12, 
-                 selectizeInput(ns("maker"), "供应商", choices = NULL, width = "100%",
-                                options = list(placeholder = '名称(拼音)...', 
+                 selectizeInput(ns("maker"), NULL, choices = NULL, width = "100%",
+                                options = list(placeholder = '供应商', 
                                                maxOptions = 500,
                                                create = FALSE))
           )
@@ -67,10 +67,10 @@ itemFilterUI <- function(
       column(12, 
              selectizeInput(
                ns("name"),                
-               label = "商品名",         
+               NULL,         
                choices = NULL,            
                options = list(
-                 placeholder = "商品名...",
+                 placeholder = "商品名",
                  create = TRUE
                ),
                width = "100%"
