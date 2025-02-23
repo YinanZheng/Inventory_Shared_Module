@@ -1777,7 +1777,7 @@ register_order <- function(order_id, customer_name, customer_netname, platform, 
         UPDATE orders 
         SET OrderImagePath = COALESCE(?, OrderImagePath), 
             UsTrackingNumber = COALESCE(?, UsTrackingNumber), 
-            OrderNotes = COALESCE(?, OrderNotes),
+            OrderNotes = ?,            
             CustomerName = COALESCE(?, CustomerName),
             CustomerNetName = COALESCE(?, CustomerNetName),
             Platform = COALESCE(?, Platform),
