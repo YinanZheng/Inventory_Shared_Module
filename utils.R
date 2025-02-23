@@ -11,32 +11,32 @@ db_connection <- function() {
 }
 
 # 导出条形码
-export_barcode_pdf <- function(sku, page_width, page_height, unit = "in") {
-  # Create a temporary file path for the PDF
-  temp_dir <- tempdir() 
+export_barcode_pdf <- function(sku, page_width, page_height, unit = "in", output_file) {
+  # 确保 sku 是一个字符向量
+  if (!is.vector(sku) || !is.character(sku)) {
+    sku <- as.character(sku)
+  }
+  sku <- sku[!is.na(sku) & sku != ""]
+  req(length(sku) > 0, "无效的 SKU 数据")
+  
+  # 如果单位是厘米，转换为英寸
   if (unit == "cm") {
-    # 1 cm = 0.393701 in 
-    page_width <- page_width / 2.54  
+    page_width <- page_width / 2.54
     page_height <- page_height / 2.54
   }
   
-  if(length(unique(sku)) > 1)
-    pdf_path <- paste0(temp_dir, "/multiple_barcode")  # 组合文件夹路径和文件名
+  # 直接使用提供的 output_file 作为目标路径
+  pdf_path <- output_file
   
-  if(length(unique(sku)) == 1)
-    pdf_path <- paste0(temp_dir, "/", unique(sku), "_", length(sku), "_barcode")
+  # 生成 PDF
+  pdf(pdf_path, width = page_width, height = page_height)
+  for (s in sku) {
+    barcode_image <- barcode::code128(s)
+    plot(barcode_image)
+  }
+  dev.off()
   
-  custom_create_PDF(Labels = sku, 
-                    name = pdf_path, 
-                    type = "linear", 
-                    page_width = page_width, 
-                    page_height = page_height,
-                    numrow = 1, 
-                    numcol = 1, 
-                    width_margin = 0, 
-                    height_margin = 0.05)
-  
-  return(paste0(pdf_path, ".pdf"))
+  return(pdf_path)
 }
 
 # 获得图片宽高比
