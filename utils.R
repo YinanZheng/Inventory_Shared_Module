@@ -2220,7 +2220,14 @@ sort_requests <- function(df) {
 }
 
 # 增量渲染任务板
+# 增量渲染任务板
 refresh_board_incremental <- function(requests, output, input) {
+  # 验证输入数据
+  if (is.null(requests) || !is.data.frame(requests)) {
+    stop("Input 'requests' is NULL or not a data frame")
+  }
+  
+  # 映射 RequestType 到 UI 输出
   request_types <- list(
     "新品" = "new_product_board",
     "采购" = "purchase_request_board",
@@ -2229,13 +2236,22 @@ refresh_board_incremental <- function(requests, output, input) {
     "出库" = "outbound_request_board"
   )
   
-  # 获取用户选择的供应商
+  # 获取用户选择的供应商，处理 NULL、empty string 或空向量
   selected_supplier <- input$selected_supplier
+  if (is.null(selected_supplier) || length(selected_supplier) == 0 || selected_supplier == "") {
+    selected_supplier <- NULL  # 表示显示所有供应商
+  }
   
-  # 如果未选择供应商，显示所有请求
-  if (selected_supplier == "") {
+  # 调试日志
+  print(paste("Selected supplier:", selected_supplier))
+  print(paste("Requests data rows:", nrow(requests)))
+  
+  # 按供应商过滤数据（如果有选择）
+  if (is.null(selected_supplier)) {
+    # 未选择供应商，显示所有请求
     filtered_requests <- requests
   } else {
+    # 选择特定供应商，仅显示该供应商的请求
     filtered_requests <- requests %>% filter(Maker == selected_supplier)
   }
   
@@ -2243,18 +2259,18 @@ refresh_board_incremental <- function(requests, output, input) {
   lapply(names(request_types), function(req_type) {
     output_id <- request_types[[req_type]]
     
-    # 按请求类型过滤数据
-    filtered_requests <- requests %>% filter(RequestType == req_type)
-
-    # 对数据进行排序
-    filtered_requests <- filtered_requests %>% sort_requests()
+    # 按请求类型过滤数据（基于已按供应商过滤的数据）
+    type_filtered_requests <- filtered_requests %>% filter(RequestType == req_type)
     
-    # 按供应商分组
-    grouped_requests <- split(filtered_requests, filtered_requests$Maker)
+    # 对数据进行排序（假设 sort_requests 已定义）
+    type_filtered_requests <- type_filtered_requests %>% sort_requests()
+    
+    # 按供应商分组（即使已按供应商过滤，这里可能不需要分组，但保持逻辑一致）
+    grouped_requests <- split(type_filtered_requests, type_filtered_requests$Maker)
     
     # 渲染 UI
     output[[output_id]] <- renderUI({
-      if (nrow(filtered_requests) == 0) {
+      if (nrow(type_filtered_requests) == 0) {
         div(style = "text-align: center; color: grey; margin-top: 20px;", tags$p("当前没有待处理事项"))
       } else {
         div(
@@ -2277,9 +2293,11 @@ refresh_board_incremental <- function(requests, output, input) {
     })
     
     # 渲染每个请求的卡片（假设 render_single_request 是已定义的函数）
-    lapply(filtered_requests$RequestID, function(request_id) {
-      render_single_request(request_id, filtered_requests, output)
-    })
+    if (nrow(type_filtered_requests) > 0) {
+      lapply(type_filtered_requests$RequestID, function(request_id) {
+        render_single_request(request_id, type_filtered_requests, output)
+      })
+    }
   })
 }
 
