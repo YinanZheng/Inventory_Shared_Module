@@ -2239,10 +2239,6 @@ refresh_board_incremental <- function(requests, output, input) {
     filtered_requests <- requests %>% filter(Maker == selected_supplier)
   }
   
-  # 调试日志
-  showNotification(paste("Selected supplier:", selected_supplier))
-  showNotification(paste("Requests data rows:", nrow(filtered_requests)))
-  
   # 遍历每种请求类型并渲染对应的 UI
   lapply(names(request_types), function(req_type) {
     output_id <- request_types[[req_type]]
