@@ -2232,18 +2232,21 @@ refresh_board_incremental <- function(requests, output, input) {
   # 获取用户选择的供应商
   selected_supplier <- input$selected_supplier
   
+  # 如果未选择供应商，则显示所有供应商的请求
+  if (is.null(selected_supplier) || selected_supplier == "") {
+    filtered_requests <- requests
+  } else {
+    # 如果选择了供应商，则筛选对应供应商的请求
+    filtered_requests <- requests %>% filter(Maker == selected_supplier)
+  }
+  
   # 遍历每种请求类型并渲染对应的 UI
   lapply(names(request_types), function(req_type) {
     output_id <- request_types[[req_type]]
     
     # 按请求类型过滤数据
     filtered_requests <- requests %>% filter(RequestType == req_type)
-    
-    # 如果选择了具体的供应商，则进一步过滤
-    if (selected_supplier != "全部") {
-      filtered_requests <- filtered_requests %>% filter(Maker == selected_supplier)
-    }
-    
+
     # 对数据进行排序
     filtered_requests <- filtered_requests %>% sort_requests()
     
