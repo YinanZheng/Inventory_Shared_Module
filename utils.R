@@ -885,8 +885,17 @@ extract_shipping_label_info <- function(pdf_path, dpi = 300) {
 # 批量添加新物品记录（采购）
 add_new_inventory_records_batch <- function(con, added_items_df) {
   tryCatch({
-    # 检查已存在的 SKU
-    existing_skus <- dbGetQuery(con, "SELECT SKU FROM inventory WHERE SKU IN (SELECT SKU FROM added_items_df)")
+    # 获取所有 SKU 列表
+    skus <- added_items_df$SKU
+    
+    # 使用参数化查询检查已存在的 SKU
+    existing_skus <- dbGetQuery(
+      con,
+      "SELECT SKU FROM inventory WHERE SKU IN (?" + paste(rep(",", length(skus) - 1), collapse = "") + ")",
+      params = as.list(skus)
+    )
+    
+    # 筛选出不存在的 SKU
     new_items <- added_items_df[!added_items_df$SKU %in% existing_skus$SKU, ]
     
     if (nrow(new_items) == 0) {
