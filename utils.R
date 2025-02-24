@@ -882,29 +882,33 @@ extract_shipping_label_info <- function(pdf_path, dpi = 300) {
   ))
 }
 
-# 添加新物品记录（采购）
-add_new_inventory_record <- function(con, sku, maker, major_type, minor_type, item_name, quantity, image_path = NULL) {
+# 批量添加新物品记录（采购）
+add_new_inventory_records_batch <- function(con, added_items_df) {
   tryCatch({
-    sku <- trimws(sku)  # 清理空格
-    # 检查是否已存在该 SKU
-    existing_item <- dbGetQuery(con, "SELECT * FROM inventory WHERE SKU = ?", params = list(sku))
+    # 检查已存在的 SKU
+    existing_skus <- dbGetQuery(con, "SELECT SKU FROM inventory WHERE SKU IN (SELECT SKU FROM added_items_df)")
+    new_items <- added_items_df[!added_items_df$SKU %in% existing_skus$SKU, ]
     
-    if (nrow(existing_item) > 0) {
-      return(NULL)  # 提前返回，表示无需新增记录
+    if (nrow(new_items) == 0) {
+      return(NULL)  # 没有新记录需要插入
     }
     
-    # 如果 SKU 不存在，插入新的库存记录
-    dbExecute(con, "INSERT INTO inventory 
-                    (SKU, Maker, MajorType, MinorType, ItemName, Quantity, ItemImagePath) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?)",
-              params = list(
-                sku, maker, major_type, minor_type, item_name, quantity, image_path
-              ))
+    # 准备批量插入的数据
+    inventory_data <- data.frame(
+      SKU = new_items$SKU,
+      Maker = new_items$Maker,
+      MajorType = new_items$MajorType,
+      MinorType = new_items$MinorType,
+      ItemName = new_items$ItemName,
+      Quantity = 0,
+      ItemImagePath = new_items$ItemImagePath,
+      stringsAsFactors = FALSE
+    )
     
-    showNotification(paste("新商品成功登记! SKU:", sku, ", 商品名:", item_name), type = "message")
+    dbWriteTable(con, "inventory", inventory_data, append = TRUE, row.names = FALSE)
     return(TRUE)
   }, error = function(e) {
-    showNotification(paste("添加新库存记录时发生错误：", e$message), type = "error")
+    showNotification(paste("批量添加库存记录失败：", e$message), type = "error")
     return(FALSE)
   })
 }
