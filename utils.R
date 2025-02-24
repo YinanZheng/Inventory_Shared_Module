@@ -2220,7 +2220,6 @@ sort_requests <- function(df) {
 }
 
 # 增量渲染任务板
-# 增量渲染任务板
 refresh_board_incremental <- function(requests, output, input) {
   # 验证输入数据
   if (is.null(requests) || !is.data.frame(requests)) {
