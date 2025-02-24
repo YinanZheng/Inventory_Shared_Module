@@ -2221,11 +2221,7 @@ sort_requests <- function(df) {
 
 # 增量渲染任务板
 refresh_board_incremental <- function(requests, output, input) {
-  # 验证输入数据
-  if (is.null(requests) || !is.data.frame(requests)) {
-    showNotification("Input 'requests' is NULL or not a data frame")
-  }
-  
+
   # 映射 RequestType 到 UI 输出
   request_types <- list(
     "新品" = "new_product_board",
@@ -2235,24 +2231,16 @@ refresh_board_incremental <- function(requests, output, input) {
     "出库" = "outbound_request_board"
   )
   
-  # 获取用户选择的供应商，处理 NULL、empty string 或空向量
-  selected_supplier <- input$selected_supplier
-  if (is.null(selected_supplier) || length(selected_supplier) == 0 || selected_supplier == "") {
-    selected_supplier <- ""  # 表示显示所有供应商
+  # 按供应商过滤数据（如果有选择）
+  if (selected_supplier == "全部供应商") {    
+    filtered_requests <- requests
+  } else {
+    filtered_requests <- requests %>% filter(Maker == selected_supplier)
   }
   
   # 调试日志
   showNotification(paste("Selected supplier:", selected_supplier))
-  showNotification(paste("Requests data rows:", nrow(requests)))
-  
-  # 按供应商过滤数据（如果有选择）
-  if (selected_supplier == "") {    
-    # 未选择供应商，显示所有请求
-    filtered_requests <- requests
-  } else {
-    # 选择特定供应商，仅显示该供应商的请求
-    filtered_requests <- requests %>% filter(Maker == selected_supplier)
-  }
+  showNotification(paste("Requests data rows:", nrow(filtered_requests)))
   
   # 遍历每种请求类型并渲染对应的 UI
   lapply(names(request_types), function(req_type) {
