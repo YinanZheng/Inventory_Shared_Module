@@ -2244,7 +2244,7 @@ refresh_board_incremental <- function(requests, output, input) {
       filtered_requests <- filtered_requests %>% filter(Maker == selected_supplier)
     }
     
-    # 对数据进行排序（假设 sort_requests 是已定义的函数）
+    # 对数据进行排序
     filtered_requests <- filtered_requests %>% sort_requests()
     
     # 按供应商分组
