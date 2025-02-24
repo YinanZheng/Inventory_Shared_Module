@@ -923,7 +923,6 @@ add_new_inventory_records_batch <- function(con, added_items_df) {
     )
     
     dbWriteTable(con, "inventory", inventory_data, append = TRUE, row.names = FALSE)
-    showNotification(paste("成功登记", nrow(new_items), "个新商品！"), type = "message")
     return(TRUE)
   }, error = function(e) {
     showNotification(paste("批量添加库存记录失败：", e$message), type = "error")
