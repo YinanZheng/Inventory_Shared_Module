@@ -2233,7 +2233,7 @@ refresh_board_incremental <- function(requests, output, input) {
   selected_supplier <- input$selected_supplier
   
   # 如果未选择供应商，显示所有请求
-  if (is.null(selected_supplier) || length(selected_supplier) == 0) {
+  if (selected_supplier == "") {
     filtered_requests <- requests
   } else {
     filtered_requests <- requests %>% filter(Maker == selected_supplier)
