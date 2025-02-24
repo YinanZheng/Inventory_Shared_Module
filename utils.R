@@ -888,12 +888,20 @@ add_new_inventory_records_batch <- function(con, added_items_df) {
     # 获取所有 SKU 列表
     skus <- added_items_df$SKU
     
+    # 检查 SKU 是否为空
+    if (length(skus) == 0) {
+      return(NULL)  # 无 SKU 可检查，直接返回
+    }
+    
     # 使用参数化查询检查已存在的 SKU
-    existing_skus <- dbGetQuery(
-      con,
-      "SELECT SKU FROM inventory WHERE SKU IN (?" + paste(rep(",", length(skus) - 1), collapse = "") + ")",
-      params = as.list(skus)
-    )
+    placeholders <- paste(rep("?", length(skus)), collapse = ",")
+    query <- sprintf("SELECT SKU FROM inventory WHERE SKU IN (%s)", placeholders)
+    existing_skus <- dbGetQuery(con, query, params = as.list(skus))
+    
+    # 如果没有匹配的记录，existing_skus 可能为空
+    if (nrow(existing_skus) == 0) {
+      existing_skus <- data.frame(SKU = character(0))
+    }
     
     # 筛选出不存在的 SKU
     new_items <- added_items_df[!added_items_df$SKU %in% existing_skus$SKU, ]
@@ -915,6 +923,7 @@ add_new_inventory_records_batch <- function(con, added_items_df) {
     )
     
     dbWriteTable(con, "inventory", inventory_data, append = TRUE, row.names = FALSE)
+    showNotification(paste("成功登记", nrow(new_items), "个新商品！"), type = "message")
     return(TRUE)
   }, error = function(e) {
     showNotification(paste("批量添加库存记录失败：", e$message), type = "error")
