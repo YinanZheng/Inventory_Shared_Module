@@ -930,6 +930,8 @@ extract_items_and_suppliers <- function(order_notes) {
 
 # 重置订单表
 reset_order_form <- function(session, image_module) {
+  shinyjs::runjs("$('#orderForm').show();")  # 确保表单可见
+  
   updateTextInput(session, "order_id", value = "")
   updateSelectInput(session, "platform", selected = "")
   updateNumericInput(session, "transaction_amount", value = "")
