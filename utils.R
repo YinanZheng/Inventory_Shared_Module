@@ -2232,11 +2232,10 @@ refresh_board_incremental <- function(requests, output, input) {
   # 获取用户选择的供应商
   selected_supplier <- input$selected_supplier
   
-  # 如果未选择供应商，则显示所有供应商的请求
-  if (is.null(selected_supplier) || selected_supplier == "") {
+  # 如果未选择供应商，显示所有请求
+  if (is.null(selected_supplier) || length(selected_supplier) == 0) {
     filtered_requests <- requests
   } else {
-    # 如果选择了供应商，则筛选对应供应商的请求
     filtered_requests <- requests %>% filter(Maker == selected_supplier)
   }
   
