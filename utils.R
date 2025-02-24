@@ -948,6 +948,12 @@ reset_order_form <- function(session, image_module) {
   shinyjs::enable("tracking_number")
   image_module$reset()
   updateTextAreaInput(session, "order_notes", value = "")
+  updateDateRangeInput(
+    session,
+    "filter_order_date",
+    start = Sys.Date() - 90,  # 恢复默认开始日期（前90天）
+    end = Sys.Date() + 1      # 恢复默认结束日期（明天）
+  )
 }
 
 # 带优先级的货架数据
