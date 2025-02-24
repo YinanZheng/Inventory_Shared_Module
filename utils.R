@@ -2238,9 +2238,19 @@ refresh_board_incremental <- function(requests, output) {
         div(style = "text-align: center; color: grey; margin-top: 20px;", tags$p("当前没有待处理事项"))
       } else {
         div(
-          style = "display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); row-gap: 15px; column-gap: 15px; padding: 5px;",
-          lapply(filtered_requests$RequestID, function(request_id) {
-            uiOutput(paste0("request_card_", request_id))
+          style = "display: flex; flex-direction: column; gap: 15px; padding: 5px",
+          lapply(names(grouped_requests), function(supplier) {
+            requests_group <- grouped_requests[[supplier]]
+            div(
+              style = "border-bottom: 1px solid #ccc; padding-bottom: 10px",
+              tags$h4(supplier, style = "margin-bottom: 10px"),
+              div(
+                style = "display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); row-gap: 15px; column-gap: 15px",
+                lapply(requests_group$RequestID, function(request_id) {
+                  uiOutput(paste0("request_card_", request_id))
+                })
+              )
+            )
           })
         )
       }
