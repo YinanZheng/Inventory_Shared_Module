@@ -2233,6 +2233,9 @@ refresh_board_incremental <- function(requests, output) {
     output_id <- request_types[[req_type]]
     filtered_requests <- requests %>% filter(RequestType == req_type) %>% sort_requests()
     
+    # 按供应商（Maker）分组
+    grouped_requests <- split(filtered_requests, filtered_requests$Maker)
+    
     output[[output_id]] <- renderUI({
       if (nrow(filtered_requests) == 0) {
         div(style = "text-align: center; color: grey; margin-top: 20px;", tags$p("当前没有待处理事项"))
