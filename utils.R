@@ -2221,7 +2221,8 @@ sort_requests <- function(df) {
 
 # 增量渲染任务板
 refresh_board_incremental <- function(requests, output, input) {
-
+  selected_supplier <- input$selected_supplier
+  
   # 映射 RequestType 到 UI 输出
   request_types <- list(
     "新品" = "new_product_board",
