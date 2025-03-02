@@ -5,7 +5,7 @@ db_connection <- function() {
     dbname = "inventory_system",
     host = "localhost",
     user = "root",
-    password = "zhengYInan1029!",
+    password = "goldenbeanllc",
     encoding = "utf8mb4"
   )
 }
