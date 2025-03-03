@@ -2434,7 +2434,8 @@ update_single_request <- function(request_id, requests_data, output) {
 
 # 渲染单个 request 卡片
 render_single_request <- function(request_id, requests, output) {
-  item <- requests() %>% filter(RequestID == request_id)
+  req_data <- requests()  # 调用 requests() 获取数据框
+  item <- req_data %>% filter(RequestID == request_id)  
   if (nrow(item) == 0) return()
   
   # 生成缓存键，确保数据变化时更新
@@ -2729,7 +2730,8 @@ bind_buttons <- function(request_ids, requests_data, input, output, session, con
 
 # 渲染留言板
 renderRemarks <- function(request_id, requests) {
-  current_remarks <- requests %>% filter(RequestID == request_id) %>% pull(Remarks)
+  req_data <- requests()  # 调用 requests() 获取数据框
+  current_remarks <- req_data %>% filter(RequestID == request_id) %>% pull(Remarks)
   
   if (is.null(current_remarks) || is.na(current_remarks) || current_remarks == "") {
     remarks <- list()
