@@ -2362,6 +2362,16 @@ refresh_board_incremental <- function(requests, output, input) {
     "出库" = "outbound_request_board"
   )
   
+  # 确保 requests 是数据框
+  if (!is.data.frame(requests) || nrow(requests) == 0) {
+    lapply(request_types, function(output_id) {
+      output[[output_id]] <- renderUI({
+        div(style = "text-align: center; color: grey; margin-top: 20px;", tags$p("当前没有数据"))
+      })
+    })
+    return()
+  }
+  
   # 按供应商过滤
   filtered_requests <- if (selected_supplier == "全部供应商") {
     requests
@@ -2408,7 +2418,7 @@ refresh_board_incremental <- function(requests, output, input) {
     }
     
     # 增量更新卡片
-    if (nrow(type_requests) > 0) {
+    if (is.data.frame(type_requests) && nrow(type_requests) > 0) {
       lapply(type_requests$RequestID, function(request_id) {
         update_single_request(request_id, reactive({type_requests}), output)
       })
@@ -2419,6 +2429,8 @@ refresh_board_incremental <- function(requests, output, input) {
 # 更新单个 request 数据并重新渲染
 update_single_request <- function(request_id, requests_data, output) {
   current_data <- requests_data()
+  if (!is.data.frame(current_data) || nrow(current_data) == 0) return()
+  
   updated_row <- current_data %>% filter(RequestID == request_id)
   
   if (nrow(updated_row) > 0) {
@@ -2435,6 +2447,8 @@ update_single_request <- function(request_id, requests_data, output) {
 # 渲染单个 request 卡片
 render_single_request <- function(request_id, requests, output) {
   req_data <- requests()  # 调用 requests() 获取数据框
+  if (!is.data.frame(req_data) || nrow(req_data) == 0) return()
+  
   item <- req_data %>% filter(RequestID == request_id)  
   if (nrow(item) == 0) return()
   
