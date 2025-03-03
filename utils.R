@@ -2446,30 +2446,36 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
       
       # 加载更多数据的逻辑
       observeEvent(input[[paste0("load_more_", req_type)]], {
+        print("Load more triggered for RequestType:")
+        print(req_type)
+        
         current_data <- type_filtered_requests
         rendered_ids <- initial_page$RequestID
-        # 计算下一页数据
+        print("Rendered IDs:")
+        print(rendered_ids)
+        
         next_page <- current_data %>% 
           filter(!RequestID %in% rendered_ids) %>%
           head(page_size)
+        print("Next page data:")
+        print(nrow(next_page))
+        print(head(next_page))
         
         if (nrow(next_page) > 0) {
-          # 渲染下一页卡片
           lapply(next_page$RequestID, function(request_id) {
             render_single_request(request_id, current_data, output)
           })
           
-          # 动态追加到 UI
           shinyjs::runjs(sprintf("
-            const board = document.getElementById('board_%s');
-            const newCardsHtml = %s;
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = newCardsHtml.join('');
-            while (tempDiv.firstChild) {
-              board.insertBefore(tempDiv.firstChild, document.getElementById('load_more_%s'));
-            }
-            document.querySelectorAll('.lazy-load-card').forEach(card => card.classList.add('loaded'));
-          ", req_type, 
+      const board = document.getElementById('board_%s');
+      const newCardsHtml = %s;
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = newCardsHtml.join('');
+      while (tempDiv.firstChild) {
+        board.insertBefore(tempDiv.firstChild, document.getElementById('load_more_%s'));
+      }
+      document.querySelectorAll('.lazy-load-card').forEach(card => card.classList.add('loaded'));
+    ", req_type, 
                                  jsonlite::toJSON(lapply(next_page$RequestID, function(id) {
                                    as.character(div(id = paste0("card_container_", id), class = "lazy-load-card", uiOutput(paste0("request_card_", id))))
                                  }), auto_unbox = TRUE), 
@@ -2478,23 +2484,29 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
           # 如果还有更多数据，继续添加加载更多触发器
           remaining_data <- current_data %>% 
             filter(!RequestID %in% c(rendered_ids, next_page$RequestID))
+          print("Remaining data after loading next page:")
+          print(nrow(remaining_data))
+          
           if (nrow(remaining_data) > 0) {
             shinyjs::runjs(sprintf("
-              const board = document.getElementById('board_%s');
-              const loadMoreDiv = document.createElement('div');
-              loadMoreDiv.id = 'load_more_%s';
-              loadMoreDiv.className = 'load-more-trigger';
-              loadMoreDiv.style.height = '20px';
-              board.appendChild(loadMoreDiv);
-              
-              const observer = new IntersectionObserver((entries) => {
-                if (entries[0].isIntersecting) {
-                  Shiny.setInputValue('load_more_%s', true, {priority: 'event'});
-                  observer.disconnect();
-                }
-              }, { threshold: 0.1 });
-              observer.observe(document.getElementById('load_more_%s'));
-            ", req_type, req_type, req_type, req_type))
+        const board = document.getElementById('board_%s');
+        const loadMoreDiv = document.createElement('div');
+        loadMoreDiv.id = 'load_more_%s';
+        loadMoreDiv.className = 'load-more-trigger';
+        loadMoreDiv.style.height = '20px';
+        board.appendChild(loadMoreDiv);
+        
+        console.log('Setting up new IntersectionObserver for %s');
+        const observer = new IntersectionObserver((entries) => {
+          console.log('IntersectionObserver triggered for %s');
+          if (entries[0].isIntersecting) {
+            console.log('Load more triggered for %s');
+            Shiny.setInputValue('load_more_%s', true, {priority: 'event'});
+            observer.disconnect();
+          }
+        }, { threshold: 0.1 });
+        observer.observe(document.getElementById('load_more_%s'));
+      ", req_type, req_type, req_type, req_type, req_type, req_type, req_type))
           }
         }
       })
