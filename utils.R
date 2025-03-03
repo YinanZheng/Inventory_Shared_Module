@@ -2441,7 +2441,7 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
   board.insertBefore(newCards, document.getElementById('load_more_%s'));
   newCards.querySelectorAll('.lazy-load-card').forEach(card => card.classList.add('loaded'));
 ", req_type, 
-                               toJSON(lapply(next_page$RequestID, function(id) {
+                               jsonlite::toJSON(lapply(next_page$RequestID, function(id) {
                                  as.character(div(id = paste0("card_container_", id), class = "lazy-load-card", uiOutput(paste0("request_card_", id))))
                                }), auto_unbox = TRUE), 
                                req_type))
@@ -2465,7 +2465,7 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
             const newCards = %s;
             board.insertBefore(newCards, document.getElementById('load_more_%s'));
           ", req_type, 
-                                 toJSON(lapply(next_page$RequestID, function(id) {
+                                 jsonlite::toJSON(lapply(next_page$RequestID, function(id) {
                                    as.character(div(id = paste0("card_container_", id), class = "lazy-load-card", uiOutput(paste0("request_card_", id))))
                                  }), auto_unbox = TRUE), 
                                  req_type))
