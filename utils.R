@@ -2348,6 +2348,8 @@ sort_requests <- function(df) {
 
 # 使用 reactiveVal 缓存已渲染的输出
 rendered_boards <- reactiveVal(list())
+# 缓存卡片和备注
+card_cache <- reactiveVal(list())
 
 # 增量渲染任务板
 refresh_board_incremental <- function(requests, output, input) {
@@ -2418,16 +2420,17 @@ refresh_board_incremental <- function(requests, output, input) {
 update_single_request <- function(request_id, requests_data, output) {
   current_data <- requests_data()
   updated_row <- current_data %>% filter(RequestID == request_id)
+  
   if (nrow(updated_row) > 0) {
     render_single_request(request_id, requests_data, output)
   } else {
+    # 数据删除时清理缓存和输出
     output[[paste0("request_card_", request_id)]] <- renderUI(NULL)
+    output[[paste0("remarks_", request_id)]] <- renderUI(NULL)
+    output[[paste0("buttons_", request_id)]] <- renderUI(NULL)
     card_cache(list_modify(card_cache(), !!request_id := NULL))
   }
 }
-
-# 缓存卡片和备注
-card_cache <- reactiveVal(list())
 
 # 渲染单个 request 卡片
 render_single_request <- function(request_id, requests, output) {
