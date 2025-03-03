@@ -2450,7 +2450,7 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
             console.log('IntersectionObserver triggered for %s');
             if (entries[0].isIntersecting) {
               console.log('Load more triggered for %s');
-              Shiny.setInputValue('load_more_%s', true, {priority: 'event'});
+              Shiny.setInputValue('load_more_%s', Math.random(), {priority: 'event'});
               observer.disconnect();
             }
           }, { threshold: 0.1 });
@@ -2510,7 +2510,7 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
                 console.log('IntersectionObserver triggered for %s');
                 if (entries[0].isIntersecting) {
                   console.log('Load more triggered for %s');
-                  Shiny.setInputValue('load_more_%s', true, {priority: 'event'});
+                  Shiny.setInputValue('load_more_%s', Math.random(), {priority: 'event'});
                   observer.disconnect();
                 }
               }, { threshold: 0.1 });
