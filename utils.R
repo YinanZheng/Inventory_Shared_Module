@@ -2377,6 +2377,12 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
     
     # 分页数据
     total_rows <- nrow(type_filtered_requests)
+    print("Total rows for RequestType:")
+    print(req_type)
+    print(total_rows)
+    print("Page size:")
+    print(page_size)
+    
     if (total_rows == 0) {
       output[[output_id]] <- renderUI({
         div(style = "text-align: center; color: grey; margin-top: 20px;", tags$p("当前没有待处理事项"))
@@ -2386,6 +2392,9 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
     
     # 初始化第一页数据
     initial_page <- type_filtered_requests[1:min(page_size, total_rows), ]
+    print("Initial page RequestIDs:")
+    print(initial_page$RequestID)
+    
     grouped_requests <- split(initial_page, initial_page$Maker)
     
     # 渲染 UI（仅渲染初始页）
@@ -2404,14 +2413,13 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
               lapply(requests_group$RequestID, function(request_id) {
                 div(
                   id = paste0("card_container_", request_id),
-                  class = "lazy-load-card loaded",  # 直接添加 loaded 类
+                  class = "lazy-load-card loaded",
                   uiOutput(paste0("request_card_", request_id))
                 )
               })
             )
           )
         }),
-        # 添加加载更多触发器
         if (total_rows > page_size) {
           div(
             id = paste0("load_more_", req_type),
@@ -2431,20 +2439,26 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
     
     # 添加观察者来加载更多数据
     if (total_rows > page_size) {
-      # 设置 IntersectionObserver 触发加载更多
       observe({
         shinyjs::runjs(sprintf("
+          console.log('Setting up IntersectionObserver for %s');
+          const loadMoreElement = document.getElementById('load_more_%s');
+          if (!loadMoreElement) {
+            console.log('Load more element not found: load_more_%s');
+            return;
+          }
           const observer = new IntersectionObserver((entries) => {
+            console.log('IntersectionObserver triggered for %s');
             if (entries[0].isIntersecting) {
+              console.log('Load more triggered for %s');
               Shiny.setInputValue('load_more_%s', true, {priority: 'event'});
               observer.disconnect();
             }
           }, { threshold: 0.1 });
-          observer.observe(document.getElementById('load_more_%s'));
-        ", req_type, req_type))
+          observer.observe(loadMoreElement);
+        ", req_type, req_type, req_type, req_type, req_type, req_type))
       })
       
-      # 加载更多数据的逻辑
       observeEvent(input[[paste0("load_more_", req_type)]], {
         print("Load more triggered for RequestType:")
         print(req_type)
@@ -2467,21 +2481,20 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
           })
           
           shinyjs::runjs(sprintf("
-      const board = document.getElementById('board_%s');
-      const newCardsHtml = %s;
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = newCardsHtml.join('');
-      while (tempDiv.firstChild) {
-        board.insertBefore(tempDiv.firstChild, document.getElementById('load_more_%s'));
-      }
-      document.querySelectorAll('.lazy-load-card').forEach(card => card.classList.add('loaded'));
-    ", req_type, 
+            const board = document.getElementById('board_%s');
+            const newCardsHtml = %s;
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = newCardsHtml.join('');
+            while (tempDiv.firstChild) {
+              board.insertBefore(tempDiv.firstChild, document.getElementById('load_more_%s'));
+            }
+            document.querySelectorAll('.lazy-load-card').forEach(card => card.classList.add('loaded'));
+          ", req_type, 
                                  jsonlite::toJSON(lapply(next_page$RequestID, function(id) {
                                    as.character(div(id = paste0("card_container_", id), class = "lazy-load-card", uiOutput(paste0("request_card_", id))))
                                  }), auto_unbox = TRUE), 
                                  req_type))
           
-          # 如果还有更多数据，继续添加加载更多触发器
           remaining_data <- current_data %>% 
             filter(!RequestID %in% c(rendered_ids, next_page$RequestID))
           print("Remaining data after loading next page:")
@@ -2489,24 +2502,24 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
           
           if (nrow(remaining_data) > 0) {
             shinyjs::runjs(sprintf("
-        const board = document.getElementById('board_%s');
-        const loadMoreDiv = document.createElement('div');
-        loadMoreDiv.id = 'load_more_%s';
-        loadMoreDiv.className = 'load-more-trigger';
-        loadMoreDiv.style.height = '20px';
-        board.appendChild(loadMoreDiv);
-        
-        console.log('Setting up new IntersectionObserver for %s');
-        const observer = new IntersectionObserver((entries) => {
-          console.log('IntersectionObserver triggered for %s');
-          if (entries[0].isIntersecting) {
-            console.log('Load more triggered for %s');
-            Shiny.setInputValue('load_more_%s', true, {priority: 'event'});
-            observer.disconnect();
-          }
-        }, { threshold: 0.1 });
-        observer.observe(document.getElementById('load_more_%s'));
-      ", req_type, req_type, req_type, req_type, req_type, req_type, req_type))
+              const board = document.getElementById('board_%s');
+              const loadMoreDiv = document.createElement('div');
+              loadMoreDiv.id = 'load_more_%s';
+              loadMoreDiv.className = 'load-more-trigger';
+              loadMoreDiv.style.height = '20px';
+              board.appendChild(loadMoreDiv);
+              
+              console.log('Setting up new IntersectionObserver for %s');
+              const observer = new IntersectionObserver((entries) => {
+                console.log('IntersectionObserver triggered for %s');
+                if (entries[0].isIntersecting) {
+                  console.log('Load more triggered for %s');
+                  Shiny.setInputValue('load_more_%s', true, {priority: 'event'});
+                  observer.disconnect();
+                }
+              }, { threshold: 0.1 });
+              observer.observe(document.getElementById('load_more_%s'));
+            ", req_type, req_type, req_type, req_type, req_type, req_type, req_type))
           }
         }
       })
