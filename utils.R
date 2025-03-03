@@ -2377,8 +2377,8 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
     
     # 分页数据
     total_rows <- nrow(type_filtered_requests)
-    showNotification(sprintf("Total rows for RequestType %s: %d", req_type, total_rows), type = "message")
-    showNotification(sprintf("Page size: %d", page_size), type = "message")
+    message(sprintf("Total rows for RequestType %s: %d", req_type, total_rows))
+    message(sprintf("Page size: %d", page_size))
     
     if (total_rows == 0) {
       output[[output_id]] <- renderUI({
@@ -2389,7 +2389,7 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
     
     # 初始化第一页数据
     initial_page <- type_filtered_requests[1:min(page_size, total_rows), ]
-    showNotification(sprintf("Initial page RequestIDs: %s", paste(initial_page$RequestID, collapse = ", ")), type = "message")
+    message(sprintf("Initial page RequestIDs: %s", paste(initial_page$RequestID, collapse = ", ")))
     
     grouped_requests <- split(initial_page, initial_page$Maker)
     
@@ -2417,14 +2417,14 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
           )
         }),
         if (total_rows > page_size) {
-          showNotification(sprintf("Adding load more trigger for RequestType: %s", req_type), type = "message")
+          message(sprintf("Adding load more trigger for RequestType: %s", req_type))
           div(
             id = paste0("load_more_", req_type),
             class = "load-more-trigger",
             style = "height: 20px;"
           )
         } else {
-          showNotification(sprintf("Not adding load more trigger for %s: total_rows <= page_size", req_type), type = "warning")
+          message(sprintf("Not adding load more trigger for %s: total_rows <= page_size", req_type))
         }
       )
     })
@@ -2459,16 +2459,16 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
       })
       
       observeEvent(input[[paste0("load_more_", req_type)]], {
-        showNotification(sprintf("Load more triggered for RequestType: %s", req_type), type = "message")
+        message(sprintf("Load more triggered for RequestType: %s", req_type))
         
         current_data <- type_filtered_requests
         rendered_ids <- initial_page$RequestID
-        showNotification(sprintf("Rendered IDs: %s", paste(rendered_ids, collapse = ", ")), type = "message")
+        message(sprintf("Rendered IDs: %s", paste(rendered_ids, collapse = ", ")))
         
         next_page <- current_data %>% 
           filter(!RequestID %in% rendered_ids) %>%
           head(page_size)
-        showNotification(sprintf("Next page data: %d rows", nrow(next_page)), type = "message")
+        message(sprintf("Next page data: %d rows", nrow(next_page)))
         
         if (nrow(next_page) > 0) {
           lapply(next_page$RequestID, function(request_id) {
@@ -2493,7 +2493,7 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
           
           remaining_data <- current_data %>% 
             filter(!RequestID %in% c(rendered_ids, next_page$RequestID))
-          showNotification(sprintf("Remaining data after loading next page: %d rows", nrow(remaining_data)), type = "message")
+          message(sprintf("Remaining data after loading next page: %d rows", nrow(remaining_data)))
           
           if (nrow(remaining_data) > 0) {
             shinyjs::runjs(sprintf("
