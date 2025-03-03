@@ -2377,11 +2377,8 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
     
     # 分页数据
     total_rows <- nrow(type_filtered_requests)
-    print("Total rows for RequestType:")
-    print(req_type)
-    print(total_rows)
-    print("Page size:")
-    print(page_size)
+    showNotification(sprintf("Total rows for RequestType %s: %d", req_type, total_rows), type = "message")
+    showNotification(sprintf("Page size: %d", page_size), type = "message")
     
     if (total_rows == 0) {
       output[[output_id]] <- renderUI({
@@ -2392,8 +2389,7 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
     
     # 初始化第一页数据
     initial_page <- type_filtered_requests[1:min(page_size, total_rows), ]
-    print("Initial page RequestIDs:")
-    print(initial_page$RequestID)
+    showNotification(sprintf("Initial page RequestIDs: %s", paste(initial_page$RequestID, collapse = ", ")), type = "message")
     
     grouped_requests <- split(initial_page, initial_page$Maker)
     
@@ -2421,11 +2417,14 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
           )
         }),
         if (total_rows > page_size) {
+          showNotification(sprintf("Adding load more trigger for RequestType: %s", req_type), type = "message")
           div(
             id = paste0("load_more_", req_type),
             class = "load-more-trigger",
             style = "height: 20px;"
           )
+        } else {
+          showNotification(sprintf("Not adding load more trigger for %s: total_rows <= page_size", req_type), type = "warning")
         }
       )
     })
@@ -2460,20 +2459,16 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
       })
       
       observeEvent(input[[paste0("load_more_", req_type)]], {
-        print("Load more triggered for RequestType:")
-        print(req_type)
+        showNotification(sprintf("Load more triggered for RequestType: %s", req_type), type = "message")
         
         current_data <- type_filtered_requests
         rendered_ids <- initial_page$RequestID
-        print("Rendered IDs:")
-        print(rendered_ids)
+        showNotification(sprintf("Rendered IDs: %s", paste(rendered_ids, collapse = ", ")), type = "message")
         
         next_page <- current_data %>% 
           filter(!RequestID %in% rendered_ids) %>%
           head(page_size)
-        print("Next page data:")
-        print(nrow(next_page))
-        print(head(next_page))
+        showNotification(sprintf("Next page data: %d rows", nrow(next_page)), type = "message")
         
         if (nrow(next_page) > 0) {
           lapply(next_page$RequestID, function(request_id) {
@@ -2481,6 +2476,7 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
           })
           
           shinyjs::runjs(sprintf("
+            console.log('Adding new cards for %s');
             const board = document.getElementById('board_%s');
             const newCardsHtml = %s;
             const tempDiv = document.createElement('div');
@@ -2489,7 +2485,7 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
               board.insertBefore(tempDiv.firstChild, document.getElementById('load_more_%s'));
             }
             document.querySelectorAll('.lazy-load-card').forEach(card => card.classList.add('loaded'));
-          ", req_type, 
+          ", req_type, req_type, 
                                  jsonlite::toJSON(lapply(next_page$RequestID, function(id) {
                                    as.character(div(id = paste0("card_container_", id), class = "lazy-load-card", uiOutput(paste0("request_card_", id))))
                                  }), auto_unbox = TRUE), 
@@ -2497,11 +2493,11 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
           
           remaining_data <- current_data %>% 
             filter(!RequestID %in% c(rendered_ids, next_page$RequestID))
-          print("Remaining data after loading next page:")
-          print(nrow(remaining_data))
+          showNotification(sprintf("Remaining data after loading next page: %d rows", nrow(remaining_data)), type = "message")
           
           if (nrow(remaining_data) > 0) {
             shinyjs::runjs(sprintf("
+              console.log('Adding new load more trigger for %s');
               const board = document.getElementById('board_%s');
               const loadMoreDiv = document.createElement('div');
               loadMoreDiv.id = 'load_more_%s';
@@ -2519,7 +2515,7 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
                 }
               }, { threshold: 0.1 });
               observer.observe(document.getElementById('load_more_%s'));
-            ", req_type, req_type, req_type, req_type, req_type, req_type, req_type))
+            ", req_type, req_type, req_type, req_type, req_type, req_type, req_type, req_type))
           }
         }
       })
