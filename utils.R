@@ -1871,7 +1871,7 @@ register_order <- function(order_id, customer_name, customer_netname, platform, 
     if (!is.na(image_path)) {
       # 如果用户上传或粘贴了图片，直接使用用户上传的图片路径（最高优先级）
       order_image_path <- image_path
-    } else if (!is.na(order_image_path) && grepl("montage", order_image_path)) { 
+    } else if (is.na(order_image_path) || !is.na(order_image_path) && grepl("montage", order_image_path)) { 
       # 如果没有用户上传或粘贴的图片，检查 OrderImagePath: “montage” <- 只有原图是拼图的时候才能更新 
       combined_image_paths <- unique(c(order_items_image_paths, box_image_paths))
       if (length(combined_image_paths) > 0) {
