@@ -2338,6 +2338,10 @@ match_tracking_number <- function(data, tracking_number_column, input_tracking_i
 
 # 定义排序函数
 sort_requests <- function(df) {
+  if (!is.data.frame(df) || nrow(df) == 0) {
+    message("sort_requests: input is invalid or empty, returning empty data frame")
+    return(data.frame(RequestID = character(), RequestStatus = character(), RequestType = character(), Maker = character(), stringsAsFactors = FALSE))
+  }
   df %>%
     arrange(
       factor(RequestStatus, levels = c("紧急", "待处理", "已完成")),
@@ -2346,14 +2350,11 @@ sort_requests <- function(df) {
     )
 }
 
-# 使用 reactiveVal 缓存已渲染的输出
-rendered_boards <- reactiveVal(list())
-# 缓存卡片和备注
-card_cache <- reactiveVal(list())
-
 # 增量渲染任务板
 refresh_board_incremental <- function(requests, output, input) {
   selected_supplier <- input$selected_supplier %||% "全部供应商"
+  message("refresh_board_incremental: selected_supplier = ", selected_supplier)
+  
   request_types <- list(
     "新品" = "new_product_board",
     "采购" = "purchase_request_board",
@@ -2362,8 +2363,8 @@ refresh_board_incremental <- function(requests, output, input) {
     "出库" = "outbound_request_board"
   )
   
-  # 确保 requests 是数据框
   if (!is.data.frame(requests) || nrow(requests) == 0) {
+    message("refresh_board_incremental: requests is invalid or empty")
     lapply(request_types, function(output_id) {
       output[[output_id]] <- renderUI({
         div(style = "text-align: center; color: grey; margin-top: 20px;", tags$p("当前没有数据"))
@@ -2372,28 +2373,26 @@ refresh_board_incremental <- function(requests, output, input) {
     return()
   }
   
-  # 按供应商过滤
   filtered_requests <- if (selected_supplier == "全部供应商") {
     requests
   } else {
     requests %>% filter(Maker == selected_supplier)
   }
   
-  # 获取当前缓存
   current_boards <- rendered_boards()
   
   lapply(names(request_types), function(req_type) {
     output_id <- request_types[[req_type]]
     type_requests <- filtered_requests %>% filter(RequestType == req_type) %>% sort_requests()
-    grouped_requests <- split(type_requests, type_requests$Maker)
+    message("refresh_board_incremental: req_type = ", req_type, ", type_requests rows = ", nrow(type_requests) %||% "NULL")
     
-    # 检查是否需要更新
-    cache_key <- digest::digest(list(req_type, selected_supplier))
+    cache_key <- digest::digest(list(req_type, selected_supplier, nrow(type_requests) %||% 0))
     if (is.null(current_boards[[output_id]]) || current_boards[[output_id]]$key != cache_key) {
       output[[output_id]] <- renderUI({
-        if (nrow(type_requests) == 0) {
+        if (!is.data.frame(type_requests) || nrow(type_requests) == 0) {
           div(style = "text-align: center; color: grey; margin-top: 20px;", tags$p("当前没有待处理事项"))
         } else {
+          grouped_requests <- split(type_requests, type_requests$Maker)
           div(
             style = "display: flex; flex-direction: column; gap: 15px; padding: 5px",
             lapply(names(grouped_requests), function(supplier) {
@@ -2412,14 +2411,13 @@ refresh_board_incremental <- function(requests, output, input) {
           )
         }
       })
-      # 更新缓存
       current_boards[[output_id]] <- list(key = cache_key, timestamp = Sys.time())
       rendered_boards(current_boards)
     }
     
-    # 增量更新卡片
     if (is.data.frame(type_requests) && nrow(type_requests) > 0) {
       lapply(type_requests$RequestID, function(request_id) {
+        message("Calling update_single_request for request_id = ", request_id)
         update_single_request(request_id, reactive({type_requests}), output)
       })
     }
@@ -2429,14 +2427,17 @@ refresh_board_incremental <- function(requests, output, input) {
 # 更新单个 request 数据并重新渲染
 update_single_request <- function(request_id, requests_data, output) {
   current_data <- requests_data()
-  if (!is.data.frame(current_data) || nrow(current_data) == 0) return()
+  message("update_single_request: request_id = ", request_id, ", current_data rows = ", nrow(current_data) %||% "NULL")
+  
+  if (!is.data.frame(current_data) || nrow(current_data) == 0) {
+    message("update_single_request: current_data is invalid or empty")
+    return()
+  }
   
   updated_row <- current_data %>% filter(RequestID == request_id)
-  
   if (nrow(updated_row) > 0) {
     render_single_request(request_id, requests_data, output)
   } else {
-    # 数据删除时清理缓存和输出
     output[[paste0("request_card_", request_id)]] <- renderUI(NULL)
     output[[paste0("remarks_", request_id)]] <- renderUI(NULL)
     output[[paste0("buttons_", request_id)]] <- renderUI(NULL)
