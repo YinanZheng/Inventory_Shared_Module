@@ -2350,50 +2350,35 @@ sort_requests <- function(df) {
 refresh_board_incremental <- function(requests, output, input) {
   selected_supplier <- input$selected_supplier
   
-  # 映射 RequestType 到 UI 输出
-  request_types <- list(
-    "新品" = "new_product_board",
-    "采购" = "purchase_request_board",
-    "安排" = "provider_arranged_board",
-    "完成" = "done_paid_board",
-    "出库" = "outbound_request_board"
-  )
-  
-  # 按供应商过滤数据（如果有选择）
-  if (selected_supplier == "全部供应商") {    
-    filtered_requests <- requests
+  # 预处理数据
+  filtered_requests <- if (selected_supplier == "全部供应商") {
+    requests
   } else {
-    filtered_requests <- requests %>% filter(Maker == selected_supplier)
-  }
+    requests %>% filter(Maker == selected_supplier)
+  } %>%
+    sort_requests() %>%  # 一次性排序
+    group_by(RequestType, Maker) %>%
+    nest()  # 嵌套数据，按类型和供应商分组
   
-  # 遍历每种请求类型并渲染对应的 UI
+  # 渲染 UI
   lapply(names(request_types), function(req_type) {
     output_id <- request_types[[req_type]]
+    type_data <- filtered_requests %>% filter(RequestType == req_type)
     
-    # 按请求类型过滤数据（基于已按供应商过滤的数据）
-    type_filtered_requests <- filtered_requests %>% filter(RequestType == req_type)
-    
-    # 对数据进行排序（假设 sort_requests 已定义）
-    type_filtered_requests <- type_filtered_requests %>% sort_requests()
-    
-    # 按供应商分组（即使已按供应商过滤，这里可能不需要分组，但保持逻辑一致）
-    grouped_requests <- split(type_filtered_requests, type_filtered_requests$Maker)
-    
-    # 渲染 UI
     output[[output_id]] <- renderUI({
-      if (nrow(type_filtered_requests) == 0) {
+      if (nrow(type_data) == 0) {
         div(style = "text-align: center; color: grey; margin-top: 20px;", tags$p("当前没有待处理事项"))
       } else {
         div(
           style = "display: flex; flex-direction: column; gap: 15px; padding: 5px",
-          lapply(names(grouped_requests), function(supplier) {
-            requests_group <- grouped_requests[[supplier]]
+          lapply(type_data$data, function(group_df) {
+            supplier <- group_df$Maker[1]
             div(
               style = "border-bottom: 1px solid #ccc; padding-bottom: 10px",
               tags$h4(supplier, style = "margin-bottom: 10px"),
               div(
                 style = "display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); row-gap: 15px; column-gap: 15px",
-                lapply(requests_group$RequestID, function(request_id) {
+                lapply(group_df$RequestID, function(request_id) {
                   uiOutput(paste0("request_card_", request_id))
                 })
               )
@@ -2403,10 +2388,10 @@ refresh_board_incremental <- function(requests, output, input) {
       }
     })
     
-    # 渲染每个请求的卡片（假设 render_single_request 是已定义的函数）
-    if (nrow(type_filtered_requests) > 0) {
-      lapply(type_filtered_requests$RequestID, function(request_id) {
-        render_single_request(request_id, type_filtered_requests, output)
+    # 渲染卡片
+    if (nrow(type_data) > 0) {
+      lapply(type_data$data[[1]]$RequestID, function(request_id) {
+        render_single_request(request_id, type_data$data[[1]], output)
       })
     }
   })
