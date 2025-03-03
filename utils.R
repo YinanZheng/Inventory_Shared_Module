@@ -2390,39 +2390,36 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
     
     # 渲染 UI（仅渲染初始页）
     output[[output_id]] <- renderUI({
-      if (total_rows == 0) {
-        div(style = "text-align: center; color: grey; margin-top: 20px;", tags$p("当前没有待处理事项"))
-      } else {
-        div(
-          id = paste0("board_", req_type),
-          style = "display: flex; flex-direction: column; gap: 15px; padding: 5px;",
-          lapply(names(grouped_requests), function(supplier) {
-            requests_group <- grouped_requests[[supplier]]
+      div(
+        id = paste0("board_", req_type),
+        style = "display: flex; flex-direction: column; gap: 15px; padding: 5px;",
+        lapply(names(grouped_requests), function(supplier) {
+          requests_group <- grouped_requests[[supplier]]
+          div(
+            id = paste0("supplier_", supplier, "_", req_type),
+            style = "border-bottom: 1px solid #ccc; padding-bottom: 10px;",
+            tags$h4(supplier, style = "margin-bottom: 10px"),
             div(
-              id = paste0("supplier_", supplier, "_", req_type),
-              style = "border-bottom: 1px solid #ccc; padding-bottom: 10px;",
-              tags$h4(supplier, style = "margin-bottom: 10px"),
-              div(
-                style = "display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); row-gap: 15px; column-gap: 15px;",
-                lapply(requests_group$RequestID, function(request_id) {
-                  div(
-                    id = paste0("card_container_", request_id),
-                    class = "lazy-load-card loaded",  # 直接添加 loaded 类
-                    uiOutput(paste0("request_card_", request_id))
-                  )
-                })
-              )
+              style = "display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); row-gap: 15px; column-gap: 15px;",
+              lapply(requests_group$RequestID, function(request_id) {
+                div(
+                  id = paste0("card_container_", request_id),
+                  class = "lazy-load-card loaded",  # 直接添加 loaded 类
+                  uiOutput(paste0("request_card_", request_id))
+                )
+              })
             )
-          }),
-          if (total_rows > page_size) {
-            div(
-              id = paste0("load_more_", req_type),
-              class = "load-more-trigger",
-              style = "height: 20px;"
-            )
-          }
-        )
-      }
+          )
+        }),
+        # 添加加载更多触发器
+        if (total_rows > page_size) {
+          div(
+            id = paste0("load_more_", req_type),
+            class = "load-more-trigger",
+            style = "height: 20px;"
+          )
+        }
+      )
     })
     
     # 渲染初始页的卡片
@@ -2434,27 +2431,30 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
     
     # 添加观察者来加载更多数据
     if (total_rows > page_size) {
+      # 设置 IntersectionObserver 触发加载更多
       observe({
         shinyjs::runjs(sprintf("
-  const board = document.getElementById('board_%s');
-  const newCards = %s;
-  board.insertBefore(newCards, document.getElementById('load_more_%s'));
-  newCards.querySelectorAll('.lazy-load-card').forEach(card => card.classList.add('loaded'));
-", req_type, 
-                               jsonlite::toJSON(lapply(next_page$RequestID, function(id) {
-                                 as.character(div(id = paste0("card_container_", id), class = "lazy-load-card", uiOutput(paste0("request_card_", id))))
-                               }), auto_unbox = TRUE), 
-                               req_type))
+          const observer = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting) {
+              Shiny.setInputValue('load_more_%s', true, {priority: 'event'});
+              observer.disconnect();
+            }
+          }, { threshold: 0.1 });
+          observer.observe(document.getElementById('load_more_%s'));
+        ", req_type, req_type))
       })
       
+      # 加载更多数据的逻辑
       observeEvent(input[[paste0("load_more_", req_type)]], {
         current_data <- type_filtered_requests
         rendered_ids <- initial_page$RequestID
+        # 计算下一页数据
         next_page <- current_data %>% 
           filter(!RequestID %in% rendered_ids) %>%
           head(page_size)
         
         if (nrow(next_page) > 0) {
+          # 渲染下一页卡片
           lapply(next_page$RequestID, function(request_id) {
             render_single_request(request_id, current_data, output)
           })
@@ -2462,13 +2462,40 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
           # 动态追加到 UI
           shinyjs::runjs(sprintf("
             const board = document.getElementById('board_%s');
-            const newCards = %s;
-            board.insertBefore(newCards, document.getElementById('load_more_%s'));
+            const newCardsHtml = %s;
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = newCardsHtml.join('');
+            while (tempDiv.firstChild) {
+              board.insertBefore(tempDiv.firstChild, document.getElementById('load_more_%s'));
+            }
+            document.querySelectorAll('.lazy-load-card').forEach(card => card.classList.add('loaded'));
           ", req_type, 
                                  jsonlite::toJSON(lapply(next_page$RequestID, function(id) {
                                    as.character(div(id = paste0("card_container_", id), class = "lazy-load-card", uiOutput(paste0("request_card_", id))))
                                  }), auto_unbox = TRUE), 
                                  req_type))
+          
+          # 如果还有更多数据，继续添加加载更多触发器
+          remaining_data <- current_data %>% 
+            filter(!RequestID %in% c(rendered_ids, next_page$RequestID))
+          if (nrow(remaining_data) > 0) {
+            shinyjs::runjs(sprintf("
+              const board = document.getElementById('board_%s');
+              const loadMoreDiv = document.createElement('div');
+              loadMoreDiv.id = 'load_more_%s';
+              loadMoreDiv.className = 'load-more-trigger';
+              loadMoreDiv.style.height = '20px';
+              board.appendChild(loadMoreDiv);
+              
+              const observer = new IntersectionObserver((entries) => {
+                if (entries[0].isIntersecting) {
+                  Shiny.setInputValue('load_more_%s', true, {priority: 'event'});
+                  observer.disconnect();
+                }
+              }, { threshold: 0.1 });
+              observer.observe(document.getElementById('load_more_%s'));
+            ", req_type, req_type, req_type, req_type))
+          }
         }
       })
     }
