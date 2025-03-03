@@ -2347,7 +2347,7 @@ sort_requests <- function(df) {
 }
 
 # 增量渲染任务板
-refresh_board_incremental <- function(requests, output, input) {
+refresh_board_incremental <- function(requests, output, input, page_size = 10) {
   selected_supplier <- input$selected_supplier
   
   # 映射 RequestType 到 UI 输出
@@ -2359,7 +2359,7 @@ refresh_board_incremental <- function(requests, output, input) {
     "出库" = "outbound_request_board"
   )
   
-  # 按供应商过滤数据（如果有选择）
+  # 按供应商过滤数据
   if (selected_supplier == "全部供应商") {    
     filtered_requests <- requests
   } else {
@@ -2370,43 +2370,102 @@ refresh_board_incremental <- function(requests, output, input) {
   lapply(names(request_types), function(req_type) {
     output_id <- request_types[[req_type]]
     
-    # 按请求类型过滤数据（基于已按供应商过滤的数据）
-    type_filtered_requests <- filtered_requests %>% filter(RequestType == req_type)
+    # 按请求类型过滤并排序
+    type_filtered_requests <- filtered_requests %>% 
+      filter(RequestType == req_type) %>%
+      sort_requests()
     
-    # 对数据进行排序（假设 sort_requests 已定义）
-    type_filtered_requests <- type_filtered_requests %>% sort_requests()
-    
-    # 按供应商分组（即使已按供应商过滤，这里可能不需要分组，但保持逻辑一致）
-    grouped_requests <- split(type_filtered_requests, type_filtered_requests$Maker)
-    
-    # 渲染 UI
-    output[[output_id]] <- renderUI({
-      if (nrow(type_filtered_requests) == 0) {
+    # 分页数据
+    total_rows <- nrow(type_filtered_requests)
+    if (total_rows == 0) {
+      output[[output_id]] <- renderUI({
         div(style = "text-align: center; color: grey; margin-top: 20px;", tags$p("当前没有待处理事项"))
-      } else {
-        div(
-          style = "display: flex; flex-direction: column; gap: 15px; padding: 5px",
-          lapply(names(grouped_requests), function(supplier) {
-            requests_group <- grouped_requests[[supplier]]
+      })
+      return()
+    }
+    
+    # 初始化第一页数据
+    initial_page <- type_filtered_requests[1:min(page_size, total_rows), ]
+    grouped_requests <- split(initial_page, initial_page$Maker)
+    
+    # 渲染 UI（仅渲染初始页）
+    output[[output_id]] <- renderUI({
+      div(
+        id = paste0("board_", req_type),
+        style = "display: flex; flex-direction: column; gap: 15px; padding: 5px;",
+        lapply(names(grouped_requests), function(supplier) {
+          requests_group <- grouped_requests[[supplier]]
+          div(
+            id = paste0("supplier_", supplier, "_", req_type),
+            style = "border-bottom: 1px solid #ccc; padding-bottom: 10px;",
+            tags$h4(supplier, style = "margin-bottom: 10px"),
             div(
-              style = "border-bottom: 1px solid #ccc; padding-bottom: 10px",
-              tags$h4(supplier, style = "margin-bottom: 10px"),
-              div(
-                style = "display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); row-gap: 15px; column-gap: 15px",
-                lapply(requests_group$RequestID, function(request_id) {
+              style = "display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); row-gap: 15px; column-gap: 15px;",
+              lapply(requests_group$RequestID, function(request_id) {
+                div(
+                  id = paste0("card_container_", request_id),
+                  class = "lazy-load-card",
                   uiOutput(paste0("request_card_", request_id))
-                })
-              )
+                )
+              })
             )
-          })
-        )
-      }
+          )
+        }),
+        # 添加加载更多触发器
+        if (total_rows > page_size) {
+          div(
+            id = paste0("load_more_", req_type),
+            class = "load-more-trigger",
+            style = "height: 20px;"
+          )
+        }
+      )
     })
     
-    # 渲染每个请求的卡片（假设 render_single_request 是已定义的函数）
-    if (nrow(type_filtered_requests) > 0) {
-      lapply(type_filtered_requests$RequestID, function(request_id) {
+    # 渲染初始页的卡片
+    if (nrow(initial_page) > 0) {
+      lapply(initial_page$RequestID, function(request_id) {
         render_single_request(request_id, type_filtered_requests, output)
+      })
+    }
+    
+    # 添加观察者来加载更多数据
+    if (total_rows > page_size) {
+      observe({
+        shinyjs::runjs(sprintf("
+          const observer = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting) {
+              Shiny.setInputValue('load_more_%s', true, {priority: 'event'});
+              observer.disconnect();
+            }
+          }, { threshold: 0.1 });
+          observer.observe(document.getElementById('load_more_%s'));
+        ", req_type, req_type))
+      })
+      
+      observeEvent(input[[paste0("load_more_", req_type)]], {
+        current_data <- type_filtered_requests
+        rendered_ids <- initial_page$RequestID
+        next_page <- current_data %>% 
+          filter(!RequestID %in% rendered_ids) %>%
+          head(page_size)
+        
+        if (nrow(next_page) > 0) {
+          lapply(next_page$RequestID, function(request_id) {
+            render_single_request(request_id, current_data, output)
+          })
+          
+          # 动态追加到 UI
+          shinyjs::runjs(sprintf("
+            const board = document.getElementById('board_%s');
+            const newCards = %s;
+            board.insertBefore(newCards, document.getElementById('load_more_%s'));
+          ", req_type, 
+                                 toJSON(lapply(next_page$RequestID, function(id) {
+                                   as.character(div(id = paste0("card_container_", id), class = "lazy-load-card", uiOutput(paste0("request_card_", id))))
+                                 }), auto_unbox = TRUE), 
+                                 req_type))
+        }
       })
     }
   })
