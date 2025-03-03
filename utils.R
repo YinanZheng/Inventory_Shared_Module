@@ -2346,68 +2346,6 @@ sort_requests <- function(df) {
     )
 }
 
-# 增量渲染任务板
-refresh_board_incremental <- function(requests, output, input) {
-  # 映射 tab 到 RequestType
-  current_tab <- input$collaboration_tabs
-  tab_to_request_type <- list(
-    "purchase" = "采购",
-    "arranged" = "安排",
-    "completed" = "完成",
-    "outbound" = "出库",
-    "new_product" = "新品"
-  )
-  request_type <- tab_to_request_type[[current_tab]] %||% "采购"
-  
-  # 预处理数据：一次性过滤和排序
-  filtered_requests <- requests %>%
-    filter(RequestType == request_type) %>%
-    { if (input$selected_supplier == "全部供应商") . else filter(., Maker == input$selected_supplier) } %>%
-    sort_requests()
-  
-  # 映射 RequestType 到 output ID
-  request_types <- list(
-    "新品" = "new_product_board",
-    "采购" = "purchase_request_board",
-    "安排" = "provider_arranged_board",
-    "完成" = "done_paid_board",
-    "出库" = "outbound_request_board"
-  )
-  output_id <- request_types[[request_type]]
-  
-  # 渲染当前选项卡的 UI
-  output[[output_id]] <- renderUI({
-    if (nrow(filtered_requests) == 0) {
-      div(style = "text-align: center; color: grey; margin-top: 20px;", tags$p("当前没有待处理事项"))
-    } else {
-      # 按 Maker 分组
-      grouped_requests <- split(filtered_requests, filtered_requests$Maker)
-      div(
-        style = "display: flex; flex-direction: column; gap: 15px; padding: 5px",
-        lapply(names(grouped_requests), function(supplier) {
-          requests_group <- grouped_requests[[supplier]]
-          div(
-            style = "border-bottom: 1px solid #ccc; padding-bottom: 10px",
-            tags$h4(supplier, style = "margin-bottom: 10px"),
-            div(
-              style = "display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); row-gap: 15px; column-gap: 15px",
-              lapply(requests_group$RequestID, function(request_id) {
-                uiOutput(paste0("request_card_", request_id))
-              })
-            )
-          )
-        })
-      )
-    }
-  })
-  
-  # 渲染所有卡片（延迟加载详细信息）
-  if (nrow(filtered_requests) > 0) {
-    lapply(filtered_requests$RequestID, function(request_id) {
-      render_single_request(request_id, filtered_requests, output)
-    })
-  }
-}
 
 # 更新单个 request 数据并重新渲染
 update_single_request <- function(request_id, requests_data, output) {
