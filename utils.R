@@ -1857,7 +1857,7 @@ register_order <- function(order_id, customer_name, customer_netname, platform, 
     order_image_path <- if (nrow(existing_order) > 0) {
       existing_order$OrderImagePath[1]  # 提取 OrderImagePath
     } else {
-      NULL
+      NA
     }
     
     # 处理 image_data 数据
@@ -1871,8 +1871,8 @@ register_order <- function(order_id, customer_name, customer_netname, platform, 
     if (!is.na(image_path)) {
       # 如果用户上传或粘贴了图片，直接使用用户上传的图片路径（最高优先级）
       order_image_path <- image_path
-    } else {
-      # 如果没有用户上传或粘贴的图片，使用库存中的图片路径和发货箱的图片路径生成拼贴图
+    } else if (!is.na(order_image_path) && grepl("montage", order_image_path)) { 
+      # 如果没有用户上传或粘贴的图片，检查 OrderImagePath: “montage” <- 只有原图是拼图的时候才能更新 
       combined_image_paths <- unique(c(order_items_image_paths, box_image_paths))
       if (length(combined_image_paths) > 0) {
         montage_path <- paste0("/var/www/images/", order_id, "_montage_", format(Sys.time(), "%Y%m%d%H%M%S"), ".jpg")
@@ -1880,6 +1880,9 @@ register_order <- function(order_id, customer_name, customer_netname, platform, 
       } else {
         order_image_path <- NA  # 确保为长度为 1 的 NA
       }
+    }  else {
+      # 如果没有用户上传且不满足拼图条件，保持 NA 或初始值
+      order_image_path <- ifelse(is.na(order_image_path), NA, order_image_path)  
     }
     
     # 确保所有参数为长度为 1 的值
