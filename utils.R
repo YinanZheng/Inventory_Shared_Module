@@ -2336,6 +2336,13 @@ match_tracking_number <- function(data, tracking_number_column, input_tracking_i
   return(matched_data)
 }
 
+
+# 使用 reactiveVal 缓存已渲染的输出
+rendered_boards <- reactiveVal(list())
+# 缓存卡片和备注
+card_cache <- reactiveVal(list())
+
+
 # 定义排序函数
 sort_requests <- function(df) {
   if (!is.data.frame(df) || nrow(df) == 0) {
