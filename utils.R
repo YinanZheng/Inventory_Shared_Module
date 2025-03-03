@@ -2390,36 +2390,39 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
     
     # 渲染 UI（仅渲染初始页）
     output[[output_id]] <- renderUI({
-      div(
-        id = paste0("board_", req_type),
-        style = "display: flex; flex-direction: column; gap: 15px; padding: 5px;",
-        lapply(names(grouped_requests), function(supplier) {
-          requests_group <- grouped_requests[[supplier]]
-          div(
-            id = paste0("supplier_", supplier, "_", req_type),
-            style = "border-bottom: 1px solid #ccc; padding-bottom: 10px;",
-            tags$h4(supplier, style = "margin-bottom: 10px"),
+      if (total_rows == 0) {
+        div(style = "text-align: center; color: grey; margin-top: 20px;", tags$p("当前没有待处理事项"))
+      } else {
+        div(
+          id = paste0("board_", req_type),
+          style = "display: flex; flex-direction: column; gap: 15px; padding: 5px;",
+          lapply(names(grouped_requests), function(supplier) {
+            requests_group <- grouped_requests[[supplier]]
             div(
-              style = "display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); row-gap: 15px; column-gap: 15px;",
-              lapply(requests_group$RequestID, function(request_id) {
-                div(
-                  id = paste0("card_container_", request_id),
-                  class = "lazy-load-card",
-                  uiOutput(paste0("request_card_", request_id))
-                )
-              })
+              id = paste0("supplier_", supplier, "_", req_type),
+              style = "border-bottom: 1px solid #ccc; padding-bottom: 10px;",
+              tags$h4(supplier, style = "margin-bottom: 10px"),
+              div(
+                style = "display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); row-gap: 15px; column-gap: 15px;",
+                lapply(requests_group$RequestID, function(request_id) {
+                  div(
+                    id = paste0("card_container_", request_id),
+                    class = "lazy-load-card loaded",  # 直接添加 loaded 类
+                    uiOutput(paste0("request_card_", request_id))
+                  )
+                })
+              )
             )
-          )
-        }),
-        # 添加加载更多触发器
-        if (total_rows > page_size) {
-          div(
-            id = paste0("load_more_", req_type),
-            class = "load-more-trigger",
-            style = "height: 20px;"
-          )
-        }
-      )
+          }),
+          if (total_rows > page_size) {
+            div(
+              id = paste0("load_more_", req_type),
+              class = "load-more-trigger",
+              style = "height: 20px;"
+            )
+          }
+        )
+      }
     })
     
     # 渲染初始页的卡片
@@ -2433,14 +2436,15 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
     if (total_rows > page_size) {
       observe({
         shinyjs::runjs(sprintf("
-          const observer = new IntersectionObserver((entries) => {
-            if (entries[0].isIntersecting) {
-              Shiny.setInputValue('load_more_%s', true, {priority: 'event'});
-              observer.disconnect();
-            }
-          }, { threshold: 0.1 });
-          observer.observe(document.getElementById('load_more_%s'));
-        ", req_type, req_type))
+  const board = document.getElementById('board_%s');
+  const newCards = %s;
+  board.insertBefore(newCards, document.getElementById('load_more_%s'));
+  newCards.querySelectorAll('.lazy-load-card').forEach(card => card.classList.add('loaded'));
+", req_type, 
+                               toJSON(lapply(next_page$RequestID, function(id) {
+                                 as.character(div(id = paste0("card_container_", id), class = "lazy-load-card", uiOutput(paste0("request_card_", id))))
+                               }), auto_unbox = TRUE), 
+                               req_type))
       })
       
       observeEvent(input[[paste0("load_more_", req_type)]], {
