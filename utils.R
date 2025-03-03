@@ -2387,139 +2387,84 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
       return()
     }
     
-    # 初始化第一页数据
-    initial_page <- type_filtered_requests[1:min(page_size, total_rows), ]
-    message(sprintf("Initial page RequestIDs: %s", paste(initial_page$RequestID, collapse = ", ")))
+    # 计算总页数
+    total_pages <- ceiling(total_rows / page_size)
+    message(sprintf("Total pages for RequestType %s: %d", req_type, total_pages))
     
-    grouped_requests <- split(initial_page, initial_page$Maker)
+    # 获取当前页数（初始为第一页）
+    current_page <- reactiveVal(1)  # 使用 reactiveVal 跟踪当前页数
+    observeEvent(input[[paste0("prev_page_", req_type)]], {
+      new_page <- max(1, current_page() - 1)
+      current_page(new_page)
+      message(sprintf("Navigated to previous page for RequestType %s: Page %d", req_type, new_page))
+    })
     
-    # 渲染 UI（仅渲染初始页）
+    observeEvent(input[[paste0("next_page_", req_type)]], {
+      new_page <- min(total_pages, current_page() + 1)
+      current_page(new_page)
+      message(sprintf("Navigated to next page for RequestType %s: Page %d", req_type, new_page))
+    })
+    
+    observeEvent(input[[paste0("goto_page_", req_type)]], {
+      new_page <- as.integer(input[[paste0("goto_page_", req_type)]])
+      if (!is.na(new_page) && new_page >= 1 && new_page <= total_pages) {
+        current_page(new_page)
+        message(sprintf("Navigated to page for RequestType %s: Page %d", req_type, new_page))
+      } else {
+        message(sprintf("Invalid page number for RequestType %s: %s", req_type, input[[paste0("goto_page_", req_type)]]))
+      }
+    })
+    
+    # 渲染当前页的 UI
     output[[output_id]] <- renderUI({
+      # 根据当前页数计算数据范围
+      page_num <- current_page()
+      start_row <- (page_num - 1) * page_size + 1
+      end_row <- min(page_num * page_size, total_rows)
+      current_page_data <- type_filtered_requests[start_row:end_row, ]
+      message(sprintf("Rendering page %d for RequestType %s: Displaying rows %d to %d", page_num, req_type, start_row, end_row))
+      
+      grouped_requests <- split(current_page_data, current_page_data$Maker)
+      
       div(
-        id = paste0("board_", req_type),
         style = "display: flex; flex-direction: column; gap: 15px; padding: 5px;",
         lapply(names(grouped_requests), function(supplier) {
           requests_group <- grouped_requests[[supplier]]
           div(
-            id = paste0("supplier_", supplier, "_", req_type),
             style = "border-bottom: 1px solid #ccc; padding-bottom: 10px;",
             tags$h4(supplier, style = "margin-bottom: 10px"),
             div(
               style = "display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); row-gap: 15px; column-gap: 15px;",
               lapply(requests_group$RequestID, function(request_id) {
-                div(
-                  id = paste0("card_container_", request_id),
-                  class = "lazy-load-card loaded",
-                  uiOutput(paste0("request_card_", request_id))
-                )
+                uiOutput(paste0("request_card_", request_id))
               })
             )
           )
         }),
-        if (total_rows > page_size) {
-          message(sprintf("Adding load more trigger for RequestType: %s", req_type))
-          div(
-            id = paste0("load_more_", req_type),
-            class = "load-more-trigger",
-            style = "height: 20px;"
-          )
-        } else {
-          message(sprintf("Not adding load more trigger for %s: total_rows <= page_size", req_type))
-        }
+        # 添加分页控件
+        div(
+          class = "pagination-controls",
+          actionButton(paste0("prev_page_", req_type), "上一页", class = "btn btn-primary"),
+          numericInput(paste0("goto_page_", req_type), "跳转到页数", value = page_num, min = 1, max = total_pages, width = "100px"),
+          actionButton(paste0("next_page_", req_type), "下一页", class = "btn btn-primary"),
+          tags$span(sprintf("共 %d 页", total_pages))
+        )
       )
     })
     
-    # 渲染初始页的卡片
-    if (nrow(initial_page) > 0) {
-      lapply(initial_page$RequestID, function(request_id) {
-        render_single_request(request_id, type_filtered_requests, output)
-      })
-    }
-    
-    # 添加观察者来加载更多数据
-    if (total_rows > page_size) {
-      observe({
-        shinyjs::runjs(sprintf("
-          console.log('Setting up IntersectionObserver for %s');
-          const loadMoreElement = document.getElementById('load_more_%s');
-          if (!loadMoreElement) {
-            console.log('Load more element not found: load_more_%s');
-            return;
-          }
-          const observer = new IntersectionObserver((entries) => {
-            console.log('IntersectionObserver triggered for %s');
-            if (entries[0].isIntersecting) {
-              console.log('Load more triggered for %s');
-              Shiny.setInputValue('load_more_%s', Math.random(), {priority: 'event'});
-              observer.disconnect();
-            }
-          }, { threshold: 0.1 });
-          observer.observe(loadMoreElement);
-        ", req_type, req_type, req_type, req_type, req_type, req_type))
-      })
+    # 渲染当前页的卡片
+    observe({
+      page_num <- current_page()
+      start_row <- (page_num - 1) * page_size + 1
+      end_row <- min(page_num * page_size, total_rows)
+      current_page_data <- type_filtered_requests[start_row:end_row, ]
       
-      observeEvent(input[[paste0("load_more_", req_type)]], {
-        message(sprintf("Load more triggered for RequestType: %s", req_type))
-        
-        current_data <- type_filtered_requests
-        rendered_ids <- initial_page$RequestID
-        message(sprintf("Rendered IDs: %s", paste(rendered_ids, collapse = ", ")))
-        
-        next_page <- current_data %>% 
-          filter(!RequestID %in% rendered_ids) %>%
-          head(page_size)
-        message(sprintf("Next page data: %d rows", nrow(next_page)))
-        
-        if (nrow(next_page) > 0) {
-          lapply(next_page$RequestID, function(request_id) {
-            render_single_request(request_id, current_data, output)
-          })
-          
-          shinyjs::runjs(sprintf("
-            console.log('Adding new cards for %s');
-            const board = document.getElementById('board_%s');
-            const newCardsHtml = %s;
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = newCardsHtml.join('');
-            while (tempDiv.firstChild) {
-              board.insertBefore(tempDiv.firstChild, document.getElementById('load_more_%s'));
-            }
-            document.querySelectorAll('.lazy-load-card').forEach(card => card.classList.add('loaded'));
-          ", req_type, req_type, 
-                                 jsonlite::toJSON(lapply(next_page$RequestID, function(id) {
-                                   as.character(div(id = paste0("card_container_", id), class = "lazy-load-card", uiOutput(paste0("request_card_", id))))
-                                 }), auto_unbox = TRUE), 
-                                 req_type))
-          
-          remaining_data <- current_data %>% 
-            filter(!RequestID %in% c(rendered_ids, next_page$RequestID))
-          message(sprintf("Remaining data after loading next page: %d rows", nrow(remaining_data)))
-          
-          if (nrow(remaining_data) > 0) {
-            shinyjs::runjs(sprintf("
-              console.log('Adding new load more trigger for %s');
-              const board = document.getElementById('board_%s');
-              const loadMoreDiv = document.createElement('div');
-              loadMoreDiv.id = 'load_more_%s';
-              loadMoreDiv.className = 'load-more-trigger';
-              loadMoreDiv.style.height = '20px';
-              board.appendChild(loadMoreDiv);
-              
-              console.log('Setting up new IntersectionObserver for %s');
-              const observer = new IntersectionObserver((entries) => {
-                console.log('IntersectionObserver triggered for %s');
-                if (entries[0].isIntersecting) {
-                  console.log('Load more triggered for %s');
-                  Shiny.setInputValue('load_more_%s', Math.random(), {priority: 'event'});
-                  observer.disconnect();
-                }
-              }, { threshold: 0.1 });
-              observer.observe(document.getElementById('load_more_%s'));
-            ", req_type, req_type, req_type, req_type, req_type, req_type, req_type, req_type))
-          }
-        }
-      })
-    }
+      if (nrow(current_page_data) > 0) {
+        lapply(current_page_data$RequestID, function(request_id) {
+          render_single_request(request_id, type_filtered_requests, output)
+        })
+      }
+    })
   })
 }
 
