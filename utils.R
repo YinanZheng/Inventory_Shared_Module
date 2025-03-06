@@ -2377,9 +2377,7 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
     
     # 分页数据
     total_rows <- nrow(type_filtered_requests)
-    message(sprintf("Total rows for RequestType %s: %d", req_type, total_rows))
-    message(sprintf("Page size: %d", page_size))
-    
+
     if (total_rows == 0) {
       output[[output_id]] <- renderUI({
         div(style = "text-align: center; color: grey; margin-top: 20px;", tags$p("当前没有待处理事项"))
@@ -2389,29 +2387,25 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
     
     # 计算总页数
     total_pages <- ceiling(total_rows / page_size)
-    message(sprintf("Total pages for RequestType %s: %d", req_type, total_pages))
-    
+
     # 获取当前页数（初始为第一页）
     current_page <- reactiveVal(1)  # 使用 reactiveVal 跟踪当前页数
     observeEvent(input[[paste0("prev_page_", req_type)]], {
       new_page <- max(1, current_page() - 1)
       current_page(new_page)
-      message(sprintf("Navigated to previous page for RequestType %s: Page %d", req_type, new_page))
     })
     
     observeEvent(input[[paste0("next_page_", req_type)]], {
       new_page <- min(total_pages, current_page() + 1)
       current_page(new_page)
-      message(sprintf("Navigated to next page for RequestType %s: Page %d", req_type, new_page))
     })
     
     observeEvent(input[[paste0("goto_page_", req_type)]], {
       new_page <- as.integer(input[[paste0("goto_page_", req_type)]])
       if (!is.na(new_page) && new_page >= 1 && new_page <= total_pages) {
         current_page(new_page)
-        message(sprintf("Navigated to page for RequestType %s: Page %d", req_type, new_page))
       } else {
-        message(sprintf("Invalid page number for RequestType %s: %s", req_type, input[[paste0("goto_page_", req_type)]]))
+        showNotification("无效的页数！", "warning")
       }
     })
     
@@ -2422,8 +2416,7 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
       start_row <- (page_num - 1) * page_size + 1
       end_row <- min(page_num * page_size, total_rows)
       current_page_data <- type_filtered_requests[start_row:end_row, ]
-      message(sprintf("Rendering page %d for RequestType %s: Displaying rows %d to %d", page_num, req_type, start_row, end_row))
-      
+
       grouped_requests <- split(current_page_data, current_page_data$Maker)
       
       div(
