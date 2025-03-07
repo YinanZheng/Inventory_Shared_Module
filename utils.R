@@ -2398,8 +2398,6 @@ refresh_board_incremental <- function(requests, output, input, page_size = 10) {
       new_page <- as.integer(input[[paste0("goto_page_", req_type)]])
       if (!is.na(new_page) && new_page >= 1 && new_page <= total_pages) {
         current_page(new_page)
-      } else {
-        showNotification("无效的页数！", "warning")
       }
     })
     
