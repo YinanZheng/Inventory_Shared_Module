@@ -1275,34 +1275,28 @@ update_maker_choices <- function(session, input_id, maker_data) {
 }
 
 # 生成SKU
-generate_sku <- function(item_type_data, major_type, minor_type, item_name, maker) {
+generate_sku <- function(item_type_data, major_type, item_name, maker) {
   if (is.null(major_type) || major_type == "" || 
-      is.null(minor_type) || minor_type == "" || 
       is.null(item_name) || item_name == "" || 
       is.null(maker) || maker == "") {
     return("")  # Return empty if any input is invalid
   }
   
-  # Get MajorTypeSKU and MinorTypeSKU
+  # Get MajorTypeSKU
   major_type_sku <- item_type_data %>%
     filter(MajorType == major_type) %>%
     pull(MajorTypeSKU) %>%
     unique()
   
-  minor_type_sku <- item_type_data %>%
-    filter(MinorType == minor_type) %>%
-    pull(MinorTypeSKU) %>%
-    unique()
-  
-  if (length(major_type_sku) == 0 || length(minor_type_sku) == 0) {
+  if (length(major_type_sku) == 0) {
     return("")  # Return empty if no matching SKUs are found
   }
   
   # Generate unique code
-  unique_code <- generate_unique_code(paste(item_name, maker, sep = "_"), length = 4)
+  unique_code <- generate_unique_code(paste(item_name, maker, sep = "_"), length = 6)
   
-  # Create the SKU in the format: MajorTypeSKU-MinorTypeSKU-UniqueCode
-  paste0(major_type_sku, "-", minor_type_sku, "-", unique_code)
+  # Create the SKU in the format: MajorTypeSKU-UniqueCode
+  paste0(major_type_sku, "-", unique_code)
 }
 
 # 空的箱子与货架
