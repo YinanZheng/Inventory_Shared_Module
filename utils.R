@@ -593,6 +593,20 @@ remove_preorder_item_note <- function(str, target) {
   }
 }
 
+# 账户余额卡片
+account_cards <- lapply(accounts, function(acc) {
+  column(3, div(
+    class = "card shadow-lg",
+    style = sprintf("background: %s; color: white; padding: 20px; text-align: center; border-radius: 16px; position: relative; overflow: hidden;", acc$gradient),
+    tags$div(
+      style = "position: absolute; top: -10px; left: -10px; opacity: 0.3;",
+      tags$img(src = "https://dummyimage.com/100x100/fff/000.png&text=$", width = "60px", height = "60px")
+    ),
+    tags$h4(acc$name, style = "font-weight: bold; margin-bottom: 10px;"),
+    tags$h3(textOutput(acc$outputId), style = "font-size: 24px; margin-top: 0;")
+  ))
+})
+
 # 获取指定账户的余额
 get_balance <- function(account_type, con) {
   # 查询指定账户的最新余额（按时间排序）
