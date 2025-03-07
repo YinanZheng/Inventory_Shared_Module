@@ -29,46 +29,6 @@ typeModuleServer <- function(id, con, item_type_data) {
       }
     })
     
-    # 渲染小类下拉框
-    output$minor_type_ui <- renderUI({
-      type_data <- item_type_data()
-      selected_major <- if (!is.null(input$new_major_type)) gsub("（.*）", "", input$new_major_type) else NULL
-      
-      if (is.null(type_data) || nrow(type_data) == 0 || is.null(selected_major)) {
-        selectizeInput(
-          ns("new_minor_type"), 
-          NULL, 
-          choices = NULL, 
-          width = "100%", 
-          options = list(placeholder = "暂无数据", maxOptions = 500)
-        )      
-      } else {
-        filtered_data <- type_data[type_data$MajorType == selected_major, ]
-        if (nrow(filtered_data) == 0) {
-          # 处理无匹配数据的情况
-          selectizeInput(
-            ns("new_minor_type"), 
-            NULL, 
-            choices = NULL, 
-            width = "100%", 
-            options = list(placeholder = "暂无匹配的小类", maxOptions = 500)
-          )
-        } else {
-          choices <- setNames(
-            c("", unique(filtered_data$MinorType)),  # 在值中添加空选项
-            c("请选择", paste0(unique(filtered_data$MinorType), "（", unique(filtered_data$MinorTypeSKU), "）"))  # 在名称中添加对应提示
-          )
-          selectizeInput(
-            ns("new_minor_type"), 
-            NULL, 
-            choices = choices, 
-            width = "100%", 
-            options = list(placeholder = "选择或搜索小类", maxOptions = 500)
-          )
-        }
-      }
-    })
-    
     # 新增大类逻辑
     observeEvent(input$add_major_type_btn, {
       showModal(modalDialog(
@@ -124,82 +84,6 @@ typeModuleServer <- function(id, con, item_type_data) {
       }, error = function(e) {
         showNotification(paste("批量新增大类失败：", e$message), type = "error")
         print(e)  # 输出错误日志以便调试
-      })
-    })
-    
-    # 新增小类逻辑
-    observeEvent(input$add_minor_type_btn, {
-      req(input$new_major_type)
-      
-      selected_major <- gsub("（.*）", "", input$new_major_type)
-      
-      showModal(modalDialog(
-        title = paste0("批量新增小类（大类: ", selected_major, "）"),
-        textAreaInput(ns("new_minor_types"), "小类名称（每行一个）:", placeholder = "输入小类名称，每行一个"),
-        footer = tagList(
-          modalButton("取消"),
-          actionButton(ns("confirm_add_minor_types"), "批量添加")
-        )
-      ))
-    })
-    
-    observeEvent(input$confirm_add_minor_types, {
-      req(input$new_minor_types, input$new_major_type)
-      
-      # 获取选择的大类名称（去除 SKU 部分）
-      selected_major <- gsub("（.*）", "", input$new_major_type)
-      
-      # 查询大类 SKU
-      major_sku <- tryCatch({
-        type_data <- item_type_data()
-        type_row <- type_data[type_data$MajorType == selected_major, ]
-        if (nrow(type_row) > 0) type_row$MajorTypeSKU[1] else NA
-      }, error = function(e) {
-        NA
-      })
-      
-      req(!is.na(major_sku))  # 确保大类 SKU 存在
-      
-      # 解析用户输入的小类名称
-      minor_type_names <- strsplit(input$new_minor_types, "\n")[[1]]
-      minor_type_names <- trimws(minor_type_names)  # 去除多余空格
-      minor_type_names <- minor_type_names[minor_type_names != ""]  # 去除空行
-      
-      if (length(minor_type_names) == 0) {
-        showNotification("请输入至少一个有效的小类名称！", type = "error")
-        return()
-      }
-      
-      tryCatch({
-        # 批量处理小类
-        for (minor_name in minor_type_names) {
-          # 校验名称有效性
-          if (is.null(minor_name) || minor_name == "") {
-            next  # 跳过无效行
-          }
-          
-          # 自动生成 SKU
-          minor_sku <- generate_unique_code(minor_name, length = 2)
-          
-          # 插入到数据库
-          dbExecute(con, 
-                    "INSERT INTO item_type_data (MajorType, MajorTypeSKU, MinorType, MinorTypeSKU) VALUES (?, ?, ?, ?)",
-                    params = list(selected_major, major_sku, minor_name, minor_sku))
-        }
-        
-        # 删除与大类关联的小类为空的行
-        dbExecute(con, "DELETE FROM item_type_data WHERE MajorType = ? AND (MinorType IS NULL OR MinorType = '')",
-                  params = list(selected_major))
-        
-        showNotification("批量新增小类成功！", type = "message")
-        removeModal()
-        
-        # 重新加载数据
-        item_type_data(dbGetQuery(con, "SELECT * FROM item_type_data"))
-        
-      }, error = function(e) {
-        showNotification(paste("批量新增小类失败：", e$message), type = "error")
-        print(e)  # 打印错误详情到控制台
       })
     })
   })
