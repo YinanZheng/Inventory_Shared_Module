@@ -5,7 +5,7 @@ pdf_paths <- list.files("/home/ubuntu/labels", full.names = TRUE)
 
 ### Debugging
 pdf_paths
-pdf_path <- pdf_paths[]
+pdf_path <- pdf_paths[6]
 dpi = 300
 ### Debugging
 
@@ -49,7 +49,7 @@ extract_shipping_label_info <- function(pdf_path, dpi = 300) {
     potential_names <- potential_names[!stri_detect_regex(potential_names, regex_pattern, case_insensitive = TRUE)]
     
     # 移除特殊符号行
-    special_keywords <- c("#")
+    special_keywords <- c("#|‘")
     potential_names <- potential_names[!stri_detect_regex(potential_names, special_keywords, case_insensitive = TRUE)]
     
     # 过滤掉 "词组+数字"
