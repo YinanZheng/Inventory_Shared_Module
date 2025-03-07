@@ -15,10 +15,27 @@ typeModuleServer <- function(id, con, item_type_data) {
           options = list(placeholder = "暂无数据", maxOptions = 500)
         )      
       } else {
+        # 定义优先显示的大类
+        priority_types <- c("动漫", "软糖", "男孩", "女孩", "动物", "其他")
+        
+        # 获取唯一的 MajorType
+        all_major_types <- unique(type_data$MajorType)
+        
+        # 分离优先类别和非优先类别
+        priority_matches <- intersect(priority_types, all_major_types)  # 确保只包含数据库中存在的大类
+        other_types <- setdiff(all_major_types, priority_matches)      # 其余类别
+        other_types <- sort(other_types)                               # 非优先类别按字母顺序排序
+        
+        # 合并优先类别和非优先类别
+        ordered_types <- c(priority_matches, other_types)
+        
+        # 为每个 MajorType 获取对应的 MajorTypeSKU（取第一个匹配的 SKU）
+        type_sku_map <- type_data[!duplicated(type_data$MajorType), c("MajorType", "MajorTypeSKU")]
         choices <- setNames(
-          c("", unique(type_data$MajorType)),  # 在值中添加空选项
-          c("请选择", paste0(unique(type_data$MajorType), "（", unique(type_data$MajorTypeSKU), "）"))  # 在名称中添加对应提示
+          c("", ordered_types),  # 在值中添加空选项
+          c("请选择", paste0(ordered_types, "（", type_sku_map$MajorTypeSKU[match(ordered_types, type_sku_map$MajorType)], "）"))
         )
+        
         selectizeInput(
           ns("new_major_type"), 
           NULL, 
@@ -29,7 +46,7 @@ typeModuleServer <- function(id, con, item_type_data) {
       }
     })
     
-    # 新增大类逻辑
+    # 新增大类逻辑（保持不变）
     observeEvent(input$add_major_type_btn, {
       showModal(modalDialog(
         title = "批量新增大类",
