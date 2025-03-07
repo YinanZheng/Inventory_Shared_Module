@@ -76,7 +76,7 @@ CREATE TABLE `orders` (
   `TransactionAmount` decimal(10,2) NOT NULL DEFAULT '0.00',
   `OrderImagePath` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `OrderNotes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `OrderStatus` enum('备货','预定','调货','装箱','发出','在途','送达') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `OrderStatus` enum('备货','预定','调货','装箱','发出','在途','送达','取消') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `LabelStatus` enum('无','已上传','已打印') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '无',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
