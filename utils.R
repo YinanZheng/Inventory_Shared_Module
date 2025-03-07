@@ -594,6 +594,13 @@ remove_preorder_item_note <- function(str, target) {
 }
 
 # 账户余额卡片
+accounts <<- list(
+  list(name = "买货卡 (139)", outputId = "purchase_balance", gradient = "linear-gradient(135deg, #FFC107, #FF9800)"),
+  list(name = "一般户卡 (541)", outputId = "general_balance", gradient = "linear-gradient(135deg, #6C757D, #495057)"),
+  list(name = "工资卡 (567)", outputId = "salary_balance", gradient = "linear-gradient(135deg, #007BFF, #0056b3)"),
+  list(name = "美元卡 (553)", outputId = "dollar_balance", gradient = "linear-gradient(135deg, #28A745, #1E7E34)")
+)
+
 account_cards <- lapply(accounts, function(acc) {
   column(3, div(
     class = "card shadow-lg",
