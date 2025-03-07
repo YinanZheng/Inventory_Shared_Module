@@ -2341,7 +2341,7 @@ sort_requests <- function(df) {
 }
 
 # 增量渲染任务板
-refresh_board_incremental <- function(requests, output, input, page_size = 10) {
+refresh_board_incremental <- function(requests, output, input, page_size = 30) {
   selected_supplier <- input$selected_supplier
   
   # 映射 RequestType 到 UI 输出
