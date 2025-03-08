@@ -1,23 +1,32 @@
 itemFilterServer <- function(id, makers_items_map) {
   moduleServer(id, function(input, output, session) {
-    # 缓存哈希值
+    # 缓存哈希值，用于优化更新
     makers_hash <- reactiveVal(NULL)
     filtered_item_names_hash <- reactiveVal(NULL)
     
+    # 默认日期范围，用于重置
+    default_dates <- list(
+      start = Sys.Date() - 365,
+      end = Sys.Date()
+    )
+    
     # 动态更新 makers 控件
     observe({
-      req(makers_items_map())  # 确保数据已加载
+      req(makers_items_map())
       
-      current_makers <- makers_items_map() %>% pull(Maker) %>% unique()
+      current_makers <- makers_items_map() %>% 
+        pull(Maker) %>% 
+        unique() %>% 
+        sort()
+      
       new_hash <- digest::digest(current_makers)
-      
-      if (!is.null(makers_hash()) && makers_hash() == new_hash) return()  # 无需更新
+      if (!is.null(makers_hash()) && makers_hash() == new_hash) return()
       makers_hash(new_hash)
       
       updateSelectizeInput(
         session,
         inputId = "maker",
-        choices = c("", current_makers),  # 更新 Maker 列表
+        choices = c("", current_makers),
         selected = "",
         server = TRUE
       )
@@ -25,17 +34,20 @@ itemFilterServer <- function(id, makers_items_map) {
     
     # 动态过滤并更新 item names 控件
     observe({
-      req(makers_items_map())  # 确保数据已加载
+      req(makers_items_map())
       
-      selected_maker <- input$maker
-      filtered_item_names <- if (!is.null(selected_maker) && selected_maker != "") {
+      selected_maker <- input$maker %||% ""
+      filtered_item_names <- if (selected_maker != "") {
         makers_items_map() %>%
           filter(Maker == selected_maker) %>%
           pull(ItemName) %>%
           unique() %>%
           sort()
       } else {
-        makers_items_map() %>% pull(ItemName) %>% unique() %>% sort()  # 所有 ItemName
+        makers_items_map() %>%
+          pull(ItemName) %>%
+          unique() %>%
+          sort()
       }
       
       new_hash <- digest::digest(filtered_item_names)
@@ -45,64 +57,53 @@ itemFilterServer <- function(id, makers_items_map) {
       updateSelectizeInput(
         session,
         inputId = "name",
-        choices = c("", filtered_item_names),  # 更新筛选后的 ItemName
+        choices = c("", filtered_item_names),
         selected = "",
         server = TRUE
       )
     })
     
-    # 监听“仅显示出库”复选框的变化
+    # 互斥逻辑：仅显示出库和仅显示售出不能同时选中
     observeEvent(input$only_show_exit, {
       if (isTRUE(input$only_show_exit)) {
-        # 如果选中了“仅显示出库”，自动取消“仅显示售出”
         updateCheckboxInput(session, "only_show_sold", value = FALSE)
       }
     })
     
-    # 监听“仅显示售出”复选框的变化
     observeEvent(input$only_show_sold, {
       if (isTRUE(input$only_show_sold)) {
-        # 如果选中了“仅显示售出”，自动取消“仅显示出库”
         updateCheckboxInput(session, "only_show_exit", value = FALSE)
       }
     })
     
-    # 清空输入（按钮绑定逻辑）
-    observeEvent(input$reset_btn, {
-      resetFilters()  # 调用封装的 resetFilters 方法
-    })
-    
-    # 清空输入的逻辑封装为 resetFilters 方法
+    # 重置筛选逻辑
     resetFilters <- function() {
       tryCatch({
-        # 重置 makers 控件
-        makers_choices <- makers_items_map() %>% pull(Maker) %>% unique()  # 获取 makers 列表
-        updateSelectizeInput(
-          session, 
-          inputId = "maker", 
-          choices = c("", makers_choices),  # 重新定义 makers choices
-          selected = NULL, 
-          server = TRUE
-        )
+        # 重置 makers
+        makers_choices <- makers_items_map() %>% pull(Maker) %>% unique() %>% sort()
+        updateSelectizeInput(session, "maker", choices = c("", makers_choices), selected = NULL, server = TRUE)
         
-        # 重置商品名称控件
-        item_name_choices <- makers_items_map() %>% pull(ItemName) %>% unique() %>% sort()  # 获取所有 ItemName
-        updateSelectizeInput(
-          session, 
-          inputId = "name", 
-          choices = c("", item_name_choices),  # 重新定义 item name choices
-          selected = NULL, 
-          server = TRUE
-        )
+        # 重置商品名称
+        item_name_choices <- makers_items_map() %>% pull(ItemName) %>% unique() %>% sort()
+        updateSelectizeInput(session, "name", choices = c("", item_name_choices), selected = NULL, server = TRUE)
         
-        # 重置库存状态
-        updateSelectInput(session, "status", selected = "")
+        # 重置库存状态（如果存在）
+        if (!is.null(input$status)) {
+          updateSelectInput(session, "status", selected = "")
+        }
         
-        # 重置日期选择器
-        updateDateRangeInput(session, "purchase_date_range", start = Sys.Date() - 365, end = Sys.Date())
-        updateDateRangeInput(session, "sold_date_range", start = Sys.Date() - 365, end = Sys.Date())
-        updateDateRangeInput(session, "exit_date_range", start = Sys.Date() - 365, end = Sys.Date())
-
+        # 重置日期选择器（如果存在）
+        if (!is.null(input$purchase_date_range)) {
+          updateDateRangeInput(session, "purchase_date_range", start = default_dates$start, end = default_dates$end)
+        }
+        if (!is.null(input$sold_date_range)) {
+          updateDateRangeInput(session, "sold_date_range", start = default_dates$start, end = default_dates$end)
+        }
+        if (!is.null(input$exit_date_range)) {
+          updateDateRangeInput(session, "exit_date_range", start = default_dates$start, end = default_dates$end)
+        }
+        
+        # 重置复选框
         updateCheckboxInput(session, "only_show_exit", value = FALSE)
         updateCheckboxInput(session, "only_show_sold", value = FALSE)
         
@@ -112,7 +113,14 @@ itemFilterServer <- function(id, makers_items_map) {
       })
     }
     
-    # 返回 resetFilters 方法供外部调用
-    return(list(resetFilters = resetFilters))
+    # 绑定重置按钮
+    observeEvent(input$reset_btn, {
+      resetFilters()
+    })
+    
+    # 返回外部接口
+    return(list(
+      resetFilters = resetFilters
+    ))
   })
 }
