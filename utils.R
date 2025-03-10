@@ -1092,8 +1092,8 @@ get_shelf_items <- function(data, sku, valid_status = c("美国入库", "国内�
   # 过滤符合条件的物品，并自动排除 "国内出库" 且未进入国际物流的物品
   result <- data %>%
     filter(
-      SKU == sku, 
-      Status %in% valid_status, 
+      SKU == sku,
+      Status %in% valid_status,
       Defect != defect_filter,
       !(Status == "国内出库" & (is.na(IntlTracking) | IntlTracking == ""))
     ) %>%
@@ -1101,7 +1101,20 @@ get_shelf_items <- function(data, sku, valid_status = c("美国入库", "国内�
     mutate(StatusPriority = case_when(
       Status %in% names(status_priority) ~ status_priority[Status],
       TRUE ~ max(unlist(status_priority)) + 1  # 默认最低优先级
-    )) 
+    ))
+  
+  # 排除“美国入库”数量为 1 的物品
+  excluded_items <- result %>%
+    filter(Status == "美国入库") %>%
+    group_by(SKU) %>%
+    mutate(Count = n()) %>%  # 计算每个 SKU 的“美国入库”数量
+    filter(Count == 1) %>%  # 仅保留数量为 1 的记录
+    ungroup() %>%
+    pull(UniqueID)  # 提取这些物品的 UniqueID
+  
+  # 从结果中移除这些物品
+  result <- result %>%
+    filter(!(UniqueID %in% excluded_items))
   
   # 根据 sort_order 确定排序方式
   if (sort_order == "up") {
