@@ -136,6 +136,34 @@ CREATE TABLE `update_log` (
   PRIMARY KEY (`table_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 
+CREATE TABLE `employee_work_rates` (
+  `EmployeeName` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `WorkType` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `HourlyRate` decimal(10,2) NOT NULL,
+  PRIMARY KEY (`EmployeeName`,`WorkType`),
+  CONSTRAINT `employee_work_rates_ibfk_1` FOREIGN KEY (`EmployeeName`) REFERENCES `employees` (`EmployeeName`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+CREATE TABLE `employees` (
+  `EmployeeName` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`EmployeeName`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+CREATE TABLE `clock_records` (
+  `RecordID` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `EmployeeName` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `WorkType` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `ClockInTime` datetime NOT NULL,
+  `ClockOutTime` datetime DEFAULT NULL,
+  `TotalPay` decimal(10,2) DEFAULT NULL,
+  `SalesAmount` decimal(10,2) DEFAULT NULL,
+  `Remark` text COLLATE utf8mb4_unicode_ci,
+  `CreatedAt` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`RecordID`),
+  KEY `EmployeeName` (`EmployeeName`),
+  CONSTRAINT `clock_records_ibfk_1` FOREIGN KEY (`EmployeeName`) REFERENCES `employees` (`EmployeeName`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
 -- 初始化 requests 的记录
 INSERT INTO update_log (table_name) VALUES ('unique_items');
 INSERT INTO update_log (table_name) VALUES ('requests');
