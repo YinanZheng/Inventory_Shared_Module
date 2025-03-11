@@ -17,6 +17,19 @@ CREATE TABLE `item_type_data` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=167 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 
+CREATE TABLE `shopping_cart` (
+  `SKU` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `Maker` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `MajorType` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `MinorType` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ItemName` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `Quantity` int DEFAULT NULL,
+  `ProductCost` decimal(10,2) DEFAULT NULL,
+  `ItemImagePath` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `timestamp` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`SKU`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
 CREATE TABLE `inventory` (
   `SKU` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `Maker` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
