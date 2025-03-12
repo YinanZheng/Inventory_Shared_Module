@@ -37,17 +37,12 @@ itemFilterServer <- function(id, makers_items_map) {
       req(makers_items_map())
       
       selected_maker <- input$maker %||% ""
-      selected_sku <- input$sku %||% ""
-      
+
       filtered_item_names <- makers_items_map()
       
       if (selected_maker != "") {
         filtered_item_names <- filtered_item_names %>%
           filter(Maker == selected_maker)
-      }
-      if (selected_sku != "") {
-        filtered_item_names <- filtered_item_names %>%
-          filter(SKU == selected_sku) 
       }
       
       filtered_item_names <- filtered_item_names %>%
