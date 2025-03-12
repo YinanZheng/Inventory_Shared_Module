@@ -1985,6 +1985,7 @@ filter_unique_items_data_by_inputs <- function(
     data, 
     input, 
     maker_input_id, 
+    sku_input_id, 
     status_input_id = NULL,
     item_name_input_id, 
     purchase_date_range_id = NULL, 
@@ -1998,6 +1999,11 @@ filter_unique_items_data_by_inputs <- function(
   # 按供应商筛选
   if (!is.null(input[[maker_input_id]]) && length(input[[maker_input_id]]) > 0 && any(input[[maker_input_id]] != "")) {
     data <- data %>% filter(Maker %in% input[[maker_input_id]])
+  }
+  
+  # 按 SKU 模糊匹配筛选
+  if (!is.null(sku_input_id) && !is.null(input[[sku_input_id]]) && input[[sku_input_id]] != "") {
+    data <- data %>% filter(grepl(input[[sku_input_id]], SKU, ignore.case = TRUE))
   }
   
   # 按库存状态筛选
@@ -2023,7 +2029,7 @@ filter_unique_items_data_by_inputs <- function(
       !is.null(input[[sold_date_range_id]]) && 
       length(input[[sold_date_range_id]]) == 2) {
     sold_date_range <- as.Date(input[[sold_date_range_id]])
-
+    
     if (!is.null(input[[only_show_sold_id]]) && input[[only_show_sold_id]]) {
       data <- data %>%
         filter(Status == "国内售出", 
@@ -2038,7 +2044,7 @@ filter_unique_items_data_by_inputs <- function(
       !is.null(input[[exit_date_range_id]]) && 
       length(input[[exit_date_range_id]]) == 2) {
     exit_date_range <- as.Date(input[[exit_date_range_id]])
-
+    
     if (!is.null(input[[only_show_exit_id]]) && input[[only_show_exit_id]]) {
       data <- data %>%
         filter(Status == "国内出库", 
