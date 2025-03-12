@@ -2003,7 +2003,7 @@ filter_unique_items_data_by_inputs <- function(
   
   # 按 SKU 模糊匹配筛选
   if (!is.null(sku_input_id) && !is.null(input[[sku_input_id]]) && input[[sku_input_id]] != "") {
-    data <- data %>% filter(grepl(input[[sku_input_id]], SKU, ignore.case = TRUE))
+    data <- data %>% filter(grepl(trimws(input[[sku_input_id]]), SKU, ignore.case = TRUE))
   }
   
   # 按库存状态筛选
