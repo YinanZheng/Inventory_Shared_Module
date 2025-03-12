@@ -37,18 +37,23 @@ itemFilterServer <- function(id, makers_items_map) {
       req(makers_items_map())
       
       selected_maker <- input$maker %||% ""
-      filtered_item_names <- if (selected_maker != "") {
-        makers_items_map() %>%
-          filter(Maker == selected_maker) %>%
-          pull(ItemName) %>%
-          unique() %>%
-          sort()
-      } else {
-        makers_items_map() %>%
-          pull(ItemName) %>%
-          unique() %>%
-          sort()
+      selected_sku <- input$sku %||% ""
+      
+      filtered_item_names <- makers_items_map()
+      
+      if (selected_maker != "") {
+        filtered_item_names <- filtered_item_names %>%
+          filter(Maker == selected_maker)
       }
+      if (selected_sku != "") {
+        filtered_item_names <- filtered_item_names %>%
+          filter(SKU == selected_sku) 
+      }
+      
+      filtered_item_names <- filtered_item_names %>%
+        pull(ItemName) %>%
+        unique() %>%
+        sort()
       
       new_hash <- digest::digest(filtered_item_names)
       if (!is.null(filtered_item_names_hash()) && filtered_item_names_hash() == new_hash) return()
@@ -82,6 +87,9 @@ itemFilterServer <- function(id, makers_items_map) {
         # 重置 makers
         makers_choices <- makers_items_map() %>% pull(Maker) %>% unique() %>% sort()
         updateSelectizeInput(session, "maker", choices = c("", makers_choices), selected = NULL, server = TRUE)
+        
+        # 重置 SKU（清空文本输入）
+        updateTextInput(session, "sku", value = "")
         
         # 重置商品名称
         item_name_choices <- makers_items_map() %>% pull(ItemName) %>% unique() %>% sort()

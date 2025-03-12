@@ -71,6 +71,13 @@ itemFilterUI <- function(
       )
     ),
     
+    # SKU 筛选
+    fluidRow(
+      column(12, 
+             textInput(ns("sku"), label = NULL, placeholder = "SKU", width = input_width)
+      )
+    ),
+    
     # 日期范围筛选
     tagList(
       if (use_purchase_date) {
