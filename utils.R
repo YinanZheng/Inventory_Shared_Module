@@ -2321,8 +2321,8 @@ createSearchableDropdown <- function(input_id, label, data, placeholder = "搜�
 
 # 匹配USPS单号
 match_tracking_number <- function(data, tracking_number_column, input_tracking_id) {
-  # 清理输入运单号（去掉空格和非数字字符）
-  cleaned_tracking_id <- gsub("[^0-9]", "", trimws(input_tracking_id))
+  # 清理输入运单号（去掉空格、非数字字符和括号）
+  cleaned_tracking_id <- gsub("[^0-9()]", "", trimws(input_tracking_id))
   
   # **使用 `grepl()` 进行子字符串匹配**
   matched_data <- data %>%
