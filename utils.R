@@ -1984,10 +1984,10 @@ update_label_status_column <- function(con, pdf_directory = "/var/uploads/shipla
 filter_unique_items_data_by_inputs <- function(
     data, 
     input, 
+    source_type = "unique_items_data",
     maker_input_id, 
     item_name_input_id, 
     other_input_id,
-    sku_input_id = NULL,
     status_input_id = NULL,
     purchase_date_range_id = NULL, 
     sold_date_range_id = NULL,
@@ -2010,15 +2010,28 @@ filter_unique_items_data_by_inputs <- function(
   # 万能筛选框
   if (!is.null(other_input_id) && !is.null(input[[other_input_id]]) && input[[other_input_id]] != "") {
     keyword <- trimws(input[[other_input_id]])
-    data <- data %>%
-      filter(
-        grepl(keyword, SKU, ignore.case = TRUE) | 
-          grepl(keyword, Defect, ignore.case = TRUE) | 
-          grepl(keyword, DefectNotes, ignore.case = TRUE) |
-          grepl(keyword, OrderID, ignore.case = TRUE) |
-          grepl(keyword, IntlTracking, ignore.case = TRUE) |
-          grepl(keyword, IntlShippingMethod, ignore.case = TRUE)
-      )
+    
+    if (source_type == "unique_items_data") {
+      
+      data <- data %>%
+        filter(
+          grepl(keyword, SKU, ignore.case = TRUE) | 
+            grepl(keyword, Defect, ignore.case = TRUE) | 
+            grepl(keyword, DefectNotes, ignore.case = TRUE) |
+            grepl(keyword, OrderID, ignore.case = TRUE) |
+            grepl(keyword, IntlTracking, ignore.case = TRUE) |
+            grepl(keyword, IntlShippingMethod, ignore.case = TRUE)
+        )
+    } 
+    
+    if (source_type == "inventory") {
+      data <- data %>%
+        filter(
+          grepl(keyword, SKU, ignore.case = TRUE) | 
+            grepl(keyword, MajorType, ignore.case = TRUE) |
+            grepl(keyword, MinorType, ignore.case = TRUE)
+        )
+    }
   }
   
   # 按库存状态筛选
