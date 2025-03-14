@@ -2202,12 +2202,12 @@ renderOrderItems <- function(output, output_name, order_items, con, deletable = 
             )
           ),
           tags$tr(
-            tags$td(tags$strong("瑕疵态:"), style = "padding: 0px;"),
-            tags$td(ifelse(is.na(item$Defect), "无", item$Defect))  # 显示瑕疵状态
+            tags$td(tags$strong("供应商:"), style = "padding: 0px;"),
+            tags$td(item$Maker)  
           ),
           tags$tr(
-            tags$td(tags$strong("瑕疵注:"), style = "padding: 0px;"),
-            tags$td(ifelse(is.na(item$DefectNotes) || item$DefectNotes == "", "无备注", item$DefectNotes))  # 显示瑕疵备注
+            tags$td(tags$strong("单价:"), style = "padding: 0px;"),
+            tags$td(item$ProductCost)
           )
         )
       )
