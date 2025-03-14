@@ -2002,11 +2002,6 @@ filter_unique_items_data_by_inputs <- function(
     data <- data %>% filter(Maker %in% input[[maker_input_id]])
   }
   
-  # 按 SKU 模糊匹配筛选
-  if (!is.null(sku_input_id) && !is.null(input[[sku_input_id]]) && input[[sku_input_id]] != "") {
-    data <- data %>% filter(grepl(trimws(input[[sku_input_id]]), SKU, ignore.case = TRUE))
-  }
-  
   # 万能筛选框
   if (!is.null(other_input_id) && !is.null(input[[other_input_id]]) && input[[other_input_id]] != "") {
     keyword <- trimws(input[[other_input_id]])
