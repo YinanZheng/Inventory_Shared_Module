@@ -2006,7 +2006,8 @@ filter_unique_items_data_by_inputs <- function(
     keyword <- trimws(input[[other_input_id]])
     data <- data %>%
       filter(
-        grepl(keyword, Defect, ignore.case = TRUE) | 
+        grepl(keyword, SKU, ignore.case = TRUE) | 
+          grepl(keyword, Defect, ignore.case = TRUE) | 
           grepl(keyword, DefectNotes, ignore.case = TRUE) |
           grepl(keyword, OrderID, ignore.case = TRUE) |
           grepl(keyword, IntlTracking, ignore.case = TRUE) |
