@@ -88,8 +88,8 @@ itemFilterServer <- function(id, makers_items_map) {
         makers_choices <- makers_items_map() %>% pull(Maker) %>% unique() %>% sort()
         updateSelectizeInput(session, "maker", choices = c("", makers_choices), selected = NULL, server = TRUE)
         
-        # 重置 SKU（清空文本输入）
-        updateTextInput(session, "sku", value = "")
+        # 重置万能筛选框
+        updateTextInput(session, "other", value = "")
         
         # 重置商品名称
         item_name_choices <- makers_items_map() %>% pull(ItemName) %>% unique() %>% sort()

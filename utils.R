@@ -2012,7 +2012,6 @@ filter_unique_items_data_by_inputs <- function(
     keyword <- trimws(input[[other_input_id]])
     
     if (source_type == "unique_items_data") {
-      
       data <- data %>%
         filter(
           grepl(keyword, SKU, ignore.case = TRUE) | 
