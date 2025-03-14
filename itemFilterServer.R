@@ -63,6 +63,11 @@ itemFilterServer <- function(id, makers_items_map) {
       )
     })
     
+    # 清空万能筛选框
+    observeEvent(input$clear_other, {
+      updateTextInput(session, "other", value = "")
+    })
+    
     # 互斥逻辑：仅显示出库和仅显示售出不能同时选中
     observeEvent(input$only_show_exit, {
       if (isTRUE(input$only_show_exit)) {
