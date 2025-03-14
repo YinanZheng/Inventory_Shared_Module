@@ -2188,6 +2188,14 @@ renderOrderItems <- function(output, output_name, order_items, con, deletable = 
             tags$td(item$ItemName)
           ),
           tags$tr(
+            tags$td(tags$strong("供应商:"), style = "padding: 0px;"),
+            tags$td(item$Maker)  
+          ),
+          tags$tr(
+            tags$td(tags$strong("单价:"), style = "padding: 0px;"),
+            tags$td(paste0("￥", item$ProductCost))
+          ),
+          tags$tr(
             tags$td(tags$strong("库存状态:"), style = "padding: 0px;"),
             tags$td(
               item$Status,
@@ -2200,14 +2208,6 @@ renderOrderItems <- function(output, output_name, order_items, con, deletable = 
               intl_status,
               style = "color: #209126; font-weight: bold;"  # 设置绿色高亮
             )
-          ),
-          tags$tr(
-            tags$td(tags$strong("供应商:"), style = "padding: 0px;"),
-            tags$td(item$Maker)  
-          ),
-          tags$tr(
-            tags$td(tags$strong("单价:"), style = "padding: 0px;"),
-            tags$td(item$ProductCost)
           )
         )
       )
