@@ -1986,7 +1986,8 @@ filter_unique_items_data_by_inputs <- function(
     input, 
     maker_input_id, 
     item_name_input_id, 
-    other_input_id,  # 替换 SKU 筛选
+    other_input_id,
+    sku_input_id = NULL,
     status_input_id = NULL,
     purchase_date_range_id = NULL, 
     sold_date_range_id = NULL,
@@ -1999,6 +2000,11 @@ filter_unique_items_data_by_inputs <- function(
   # 按供应商筛选
   if (!is.null(input[[maker_input_id]]) && length(input[[maker_input_id]]) > 0 && any(input[[maker_input_id]] != "")) {
     data <- data %>% filter(Maker %in% input[[maker_input_id]])
+  }
+  
+  # 按 SKU 模糊匹配筛选
+  if (!is.null(sku_input_id) && !is.null(input[[sku_input_id]]) && input[[sku_input_id]] != "") {
+    data <- data %>% filter(grepl(trimws(input[[sku_input_id]]), SKU, ignore.case = TRUE))
   }
   
   # 万能筛选框
