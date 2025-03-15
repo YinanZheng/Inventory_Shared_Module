@@ -1,32 +1,17 @@
 orderTableServer <- function(input, output, session, column_mapping, selection = "single", data, user_timezone,
                              options = modifyList(table_default_options, list(scrollY = "360px"))) {
-  
-  # 处理数据，转换 created_at 并格式化
-  formatted_data_reactive <- reactive({
-    data_df <- data()
-    message("原始数据行数: ", nrow(data_df))
-    message("原始数据列名: ", paste(names(data_df), collapse = ", "))
-    
-    if ("created_at" %in% names(data_df)) {
-      # 转换为日期时间并调整时区
-      data_df[["created_at"]] <- lubridate::as_datetime(data_df[["created_at"]])
-      message("原始 created_at 示例: ", as.character(head(data_df[["created_at"]])))
-      
-      data_df[["created_at"]] <- lubridate::with_tz(data_df[["created_at"]], tzone = user_timezone)
-      # 格式化为指定样式
-      data_df[["created_at"]] <- format(data_df[["created_at"]], "%y-%m-%d\n%H:%M:%S")
-      message("格式化后 created_at 示例: ", head(data_df[["created_at"]]))
-    } else {
-      message("警告: 数据中未找到 'created_at' 列")
-    }
-    
-    data_df
-  })
-  
   output$order_table <- renderDT({
 
-    formatted_data <- formatted_data_reactive()
-    message("渲染数据行数: ", nrow(formatted_data))
+    formatted_data <- data() %>%
+      mutate(
+        created_at = format(
+          with_tz(  # ✅ 先转换到用户时区
+            ymd_hms(created_at, tz = "UTC"),  # ✅ 解析 MySQL `created_at`
+            user_timezone  # ✅ 使用存储的时区值
+          ),
+          "%y-%m-%d\n%H:%M:%S"  # ✅ 最终格式化
+        )
+      )
     
     # 初始化渲染表
     datatable_and_names <- render_table_with_images(
