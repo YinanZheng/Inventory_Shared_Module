@@ -2,6 +2,8 @@ orderTableServer <- function(input, output, session, column_mapping, selection =
                              options = modifyList(table_default_options, list(scrollY = "360px"))) {
   output$order_table <- renderDT({
     
+    user_tz <- input$user_timezone  # 获取用户时区
+    
     # 格式化数据
     formatted_data <- data() %>%
       mutate(
@@ -16,7 +18,6 @@ orderTableServer <- function(input, output, session, column_mapping, selection =
           )
         )
       )
-    
 
     # 初始化渲染表
     datatable_and_names <- render_table_with_images(
