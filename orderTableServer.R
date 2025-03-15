@@ -5,19 +5,15 @@ orderTableServer <- function(input, output, session, column_mapping, selection =
     
     formatted_data <- data() %>%
       mutate(
-        created_at = if_else(
-          is.na(created_at),  
-          as.character(NA),  
-          format(
-            with_tz(  # ✅ 先转换到用户时区
-              ymd_hms(created_at, tz = "UTC"),  # ✅ 解析 MySQL `created_at`
-              user_timezone()  # ✅ 使用存储的时区值
-            ),
-            "%y-%m-%d\n%H:%M:%S"  # ✅ 最终格式化
-          )
+        created_at = format(
+          with_tz(  # ✅ 先转换到用户时区
+            ymd_hms(created_at, tz = "UTC"),  # ✅ 解析 MySQL `created_at`
+            user_timezone()  # ✅ 使用存储的时区值
+          ),
+          "%y-%m-%d\n%H:%M:%S"  # ✅ 最终格式化
         )
       )
-    
+
     # 初始化渲染表
     datatable_and_names <- render_table_with_images(
       data = formatted_data,                 # 使用传递的 reactive 数据源
