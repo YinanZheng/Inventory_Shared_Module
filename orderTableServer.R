@@ -2,19 +2,21 @@ orderTableServer <- function(input, output, session, column_mapping, selection =
                              options = modifyList(table_default_options, list(scrollY = "360px"))) {
   output$order_table <- renderDT({
     
-    user_tz <- input$user_timezone  # 获取用户时区
+    req(input$user_timezone)  # 确保 Shiny 获取到用户时区
     
-    # 格式化数据
+    user_tz <- isolate(input$user_timezone)  # 先提取时区，避免 `mutate()` 访问不到
+    
     formatted_data <- data() %>%
       mutate(
-        created_at = case_when(
-          is.na(created_at) ~ NA_character_,  # 处理 NULL 值，防止报错
-          TRUE ~ format(
-            with_tz(
-              ymd_hms(created_at, tz = "UTC"),  # ✅ 先解析 UTC 时间
-              user_tz  # ✅ 转换到用户时区
+        created_at = ifelse(
+          is.na(created_at) | created_at == "",  # 处理 NULL 或空值
+          NA_character_,  # 保持 NA，防止报错
+          format(  # ✅ 最终格式化时间
+            with_tz(  # ✅ 确保时间转换到用户时区
+              ymd_hms(as.character(created_at), tz = "UTC"),  # ✅ 解析 `created_at` 为 UTC
+              user_tz  # ✅ 转换为用户本地时区
             ),
-            "%y-%m-%d\n%H:%M:%S"  # ✅ 最终格式化
+            "%y-%m-%d\n%H:%M:%S"  # ✅ 格式化输出
           )
         )
       )
