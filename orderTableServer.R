@@ -5,13 +5,12 @@ orderTableServer <- function(input, output, session, column_mapping, selection =
     # 格式化数据
     formatted_data <- data() %>%
       mutate(
-        created_at = ifelse(
-          is.na(created_at) | created_at == "",  # 处理 NULL 或空值
-          NA,  # 为空则保持 NA
-          format(
-            with_tz(  # ✅ 确保时间转换为用户时区
-              as.POSIXct(created_at, format = "%Y-%m-%d %H:%M:%S", tz = "UTC"),  # ✅ 先解析为 UTC
-              tzone = input$user_timezone  # ✅ 转换为用户本地时区
+        created_at = case_when(
+          is.na(created_at) ~ NA_character_,  # 处理 NULL 值，防止报错
+          TRUE ~ format(
+            with_tz(
+              ymd_hms(created_at, tz = "UTC"),  # ✅ 先解析 UTC 时间
+              user_tz  # ✅ 转换到用户时区
             ),
             "%y-%m-%d\n%H:%M:%S"  # ✅ 最终格式化
           )
