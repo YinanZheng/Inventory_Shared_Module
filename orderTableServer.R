@@ -1,27 +1,23 @@
 orderTableServer <- function(input, output, session, column_mapping, selection = "single", data, 
                              options = modifyList(table_default_options, list(scrollY = "360px"))) {
   output$order_table <- renderDT({
-    
-    req(input$user_timezone)  # 确保 Shiny 获取到用户时区
-    
-    user_tz <- isolate(input$user_timezone)  # 先获取用户时区，避免 `mutate()` 访问不到
+    req(user_timezone())  # ✅ 确保时区已经存储
     
     formatted_data <- data() %>%
       mutate(
         created_at = if_else(
-          is.na(created_at),  # 处理 NULL 值
-          as.character(NA),  # 让 NA 处理成字符，避免 mutate 报错
+          is.na(created_at),  
+          as.character(NA),  
           format(
             with_tz(  # ✅ 先转换到用户时区
               ymd_hms(created_at, tz = "UTC"),  # ✅ 解析 MySQL `created_at`
-              user_tz  # ✅ 转换为用户本地时区
+              user_timezone()  # ✅ 使用存储的时区值
             ),
             "%y-%m-%d\n%H:%M:%S"  # ✅ 最终格式化
           )
         )
       )
     
-
     # 初始化渲染表
     datatable_and_names <- render_table_with_images(
       data = formatted_data,                 # 使用传递的 reactive 数据源
