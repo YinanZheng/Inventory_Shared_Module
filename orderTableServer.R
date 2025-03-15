@@ -1,12 +1,5 @@
-orderTableServer <- function(input, output, session, column_mapping, selection = "single", data, 
+orderTableServer <- function(input, output, session, column_mapping, selection = "single", data, user_timezone,
                              options = modifyList(table_default_options, list(scrollY = "360px"))) {
-  
-  # 获取用户时区，默认使用 UTC
-  user_timezone <- reactive({
-    tz <- input$user_timezone %||% "UTC"
-    message("用户时区输入: ", input$user_timezone %||% "未获取到", "，使用: ", tz)
-    tz
-  })
   
   # 处理数据，转换 created_at 并格式化
   formatted_data_reactive <- reactive({
@@ -19,7 +12,7 @@ orderTableServer <- function(input, output, session, column_mapping, selection =
       data_df[["created_at"]] <- lubridate::as_datetime(data_df[["created_at"]])
       message("原始 created_at 示例: ", as.character(head(data_df[["created_at"]])))
       
-      data_df[["created_at"]] <- lubridate::with_tz(data_df[["created_at"]], tzone = user_timezone())
+      data_df[["created_at"]] <- lubridate::with_tz(data_df[["created_at"]], tzone = user_timezone)
       # 格式化为指定样式
       data_df[["created_at"]] <- format(data_df[["created_at"]], "%y-%m-%d\n%H:%M:%S")
       message("格式化后 created_at 示例: ", head(data_df[["created_at"]]))
