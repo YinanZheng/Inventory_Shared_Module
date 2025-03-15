@@ -4,25 +4,25 @@ orderTableServer <- function(input, output, session, column_mapping, selection =
   # 获取用户时区，默认使用 UTC
   user_timezone <- reactive({
     tz <- input$user_timezone %||% "UTC"
-    message("用户时区: ", tz)
+    message("用户时区输入: ", input$user_timezone %||% "未获取到", "，使用: ", tz)
     tz
   })
   
-  # 处理数据，转换 created_at
+  # 处理数据，转换 created_at 并格式化
   formatted_data_reactive <- reactive({
     data_df <- data()
     message("原始数据行数: ", nrow(data_df))
     message("原始数据列名: ", paste(names(data_df), collapse = ", "))
     
-    # 检查 created_at 是否存在并转换为用户时区
     if ("created_at" %in% names(data_df)) {
-      # 确保 created_at 是日期时间格式
+      # 转换为日期时间并调整时区
       data_df[["created_at"]] <- lubridate::as_datetime(data_df[["created_at"]])
       message("原始 created_at 示例: ", as.character(head(data_df[["created_at"]])))
       
-      # 转换为用户时区
       data_df[["created_at"]] <- lubridate::with_tz(data_df[["created_at"]], tzone = user_timezone())
-      message("转换后 created_at 示例: ", as.character(head(data_df[["created_at"]])))
+      # 格式化为指定样式
+      data_df[["created_at"]] <- format(data_df[["created_at"]], "%y-%m-%d\n%H:%M:%S")
+      message("格式化后 created_at 示例: ", head(data_df[["created_at"]]))
     } else {
       message("警告: 数据中未找到 'created_at' 列")
     }
