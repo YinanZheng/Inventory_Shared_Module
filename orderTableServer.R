@@ -5,9 +5,16 @@ orderTableServer <- function(input, output, session, column_mapping, selection =
     # 格式化数据
     formatted_data <- data() %>%
       mutate(
-        created_at = format(
-          with_tz(as.POSIXct(created_at, format = "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"), input$user_timezone),
-          "%y-%m-%d\n%H:%M:%S"
+        created_at = ifelse(
+          is.na(created_at) | created_at == "",  # 处理 NULL 或空值
+          NA,  # 保持 NA
+          format(
+            with_tz(
+              as.POSIXct(created_at, format = "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),  # 先解析为 UTC
+              user_tz  # 转换为用户本地时区
+            ),
+            "%y-%m-%d\n%H:%M:%S"
+          )
         )
       )
 
