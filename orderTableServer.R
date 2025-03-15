@@ -4,22 +4,23 @@ orderTableServer <- function(input, output, session, column_mapping, selection =
     
     req(input$user_timezone)  # 确保 Shiny 获取到用户时区
     
-    user_tz <- isolate(input$user_timezone)  # 先提取时区，避免 `mutate()` 访问不到
+    user_tz <- isolate(input$user_timezone)  # 先获取用户时区，避免 `mutate()` 访问不到
     
     formatted_data <- data() %>%
       mutate(
-        created_at = ifelse(
-          is.na(created_at) | created_at == "",  # 处理 NULL 或空值
-          NA_character_,  # 保持 NA，防止报错
-          format(  # ✅ 最终格式化时间
-            with_tz(  # ✅ 确保时间转换到用户时区
-              ymd_hms(as.character(created_at), tz = "UTC"),  # ✅ 解析 `created_at` 为 UTC
+        created_at = if_else(
+          is.na(created_at),  # 处理 NULL 值
+          as.character(NA),  # 让 NA 处理成字符，避免 mutate 报错
+          format(
+            with_tz(  # ✅ 先转换到用户时区
+              ymd_hms(created_at, tz = "UTC"),  # ✅ 解析 MySQL `created_at`
               user_tz  # ✅ 转换为用户本地时区
             ),
-            "%y-%m-%d\n%H:%M:%S"  # ✅ 格式化输出
+            "%y-%m-%d\n%H:%M:%S"  # ✅ 最终格式化
           )
         )
       )
+    
 
     # 初始化渲染表
     datatable_and_names <- render_table_with_images(
