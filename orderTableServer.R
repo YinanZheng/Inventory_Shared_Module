@@ -1,19 +1,31 @@
 orderTableServer <- function(input, output, session, column_mapping, selection = "single", data, 
                              options = modifyList(table_default_options, list(scrollY = "360px"))) {
-  output$order_table <- renderDT({
-    req(user_timezone())  # ✅ 确保时区已经存储
+  
+  # 获取用户时区
+  user_timezone <- reactive({
+    req(input$user_timezone)  # 确保时区已传入
+    input$user_timezone
+  })
+  
+  # 处理数据，将 created_at 转换为用户本地时区
+  formatted_data_reactive <- reactive({
+    data_df <- data()
     
-    formatted_data <- data() %>%
-      mutate(
-        created_at = format(
-          with_tz(  # ✅ 先转换到用户时区
-            ymd_hms(created_at, tz = "UTC"),  # ✅ 解析 MySQL `created_at`
-            user_timezone()  # ✅ 使用存储的时区值
-          ),
-          "%y-%m-%d\n%H:%M:%S"  # ✅ 最终格式化
-        )
+    # 确保 created_at 列存在并且转换为用户时区
+    if ("created_at" %in% names(data_df)) {
+      data_df[["created_at"]] <- lubridate::with_tz(
+        lubridate::as_datetime(data_df[["created_at"]]), 
+        tzone = user_timezone()
       )
+    }
+    
+    data_df
+  })
+  
+  output$order_table <- renderDT({
 
+    formatted_data <- formatted_data_reactive()
+    
     # 初始化渲染表
     datatable_and_names <- render_table_with_images(
       data = formatted_data,                 # 使用传递的 reactive 数据源
