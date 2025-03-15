@@ -6,8 +6,8 @@ orderTableServer <- function(input, output, session, column_mapping, selection =
     formatted_data <- data() %>%
       mutate(
         created_at = format(
-          as.POSIXct(created_at, format = "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"), # 将字符串转换为 POSIXct 格式
-          "%y-%m-%d\n%H:%M:%S"  # 格式化为 25-01-01 (换行) 13:18:56
+          as.POSIXct(created_at, format = "%Y-%m-%dT%H:%M:%SZ", tz = input$user_timezone), # 将字符串转换为 POSIXct 格式
+          "%y-%m-%d\n%H:%M:%S"
         )
       )
     
