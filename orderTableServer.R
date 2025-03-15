@@ -1,22 +1,30 @@
 orderTableServer <- function(input, output, session, column_mapping, selection = "single", data, 
                              options = modifyList(table_default_options, list(scrollY = "360px"))) {
   
-  # 获取用户时区
+  # 获取用户时区，默认使用 UTC
   user_timezone <- reactive({
-    req(input$user_timezone)  # 确保时区已传入
-    input$user_timezone
+    tz <- input$user_timezone %||% "UTC"
+    message("用户时区: ", tz)
+    tz
   })
   
-  # 处理数据，将 created_at 转换为用户本地时区
+  # 处理数据，转换 created_at
   formatted_data_reactive <- reactive({
     data_df <- data()
+    message("原始数据行数: ", nrow(data_df))
+    message("原始数据列名: ", paste(names(data_df), collapse = ", "))
     
-    # 确保 created_at 列存在并且转换为用户时区
+    # 检查 created_at 是否存在并转换为用户时区
     if ("created_at" %in% names(data_df)) {
-      data_df[["created_at"]] <- lubridate::with_tz(
-        lubridate::as_datetime(data_df[["created_at"]]), 
-        tzone = user_timezone()
-      )
+      # 确保 created_at 是日期时间格式
+      data_df[["created_at"]] <- lubridate::as_datetime(data_df[["created_at"]])
+      message("原始 created_at 示例: ", as.character(head(data_df[["created_at"]])))
+      
+      # 转换为用户时区
+      data_df[["created_at"]] <- lubridate::with_tz(data_df[["created_at"]], tzone = user_timezone())
+      message("转换后 created_at 示例: ", as.character(head(data_df[["created_at"]])))
+    } else {
+      message("警告: 数据中未找到 'created_at' 列")
     }
     
     data_df
@@ -25,6 +33,7 @@ orderTableServer <- function(input, output, session, column_mapping, selection =
   output$order_table <- renderDT({
 
     formatted_data <- formatted_data_reactive()
+    message("渲染数据行数: ", nrow(formatted_data))
     
     # 初始化渲染表
     datatable_and_names <- render_table_with_images(
